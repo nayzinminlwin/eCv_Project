@@ -1,5 +1,6 @@
 {
   "app": "npx ts-node --prefer-ts-exts bin/e_cv_project.ts",
+  "profile" : "NZ_eCv",
   "watch": {
     "include": [
       "**"
