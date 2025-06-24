@@ -3,6 +3,7 @@ import { SqsDestination } from 'aws-cdk-lib/aws-s3-notifications';
 import { Bucket, CfnBucket, EventType } from 'aws-cdk-lib/aws-s3';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
+import * as lambda from 'aws-cdk-lib/aws-lambda';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class ECvProjectStack extends cdk.Stack {
