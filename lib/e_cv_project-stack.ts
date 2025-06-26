@@ -32,7 +32,7 @@ export class ECvProjectStack extends cdk.Stack {
 
     const bucket = new Bucket(this, "ReportBucket", {
 
-      bucketName : "report_bucket",
+      bucketName : "report-bucket-for-real",
 
       // to delete all inside the bucket after cdk destroy
       removalPolicy : cdk.RemovalPolicy.DESTROY,
