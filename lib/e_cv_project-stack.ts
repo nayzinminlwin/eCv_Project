@@ -4,6 +4,8 @@ import { Bucket, CfnBucket, EventType } from 'aws-cdk-lib/aws-s3';
 import { Queue } from 'aws-cdk-lib/aws-sqs';
 import { Construct } from 'constructs';
 import * as lambda from 'aws-cdk-lib/aws-lambda';
+import * as events from 'aws-cdk-lib/aws-events';
+import * as targets from 'aws-cdk-lib/aws-events-targets';
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class ECvProjectStack extends cdk.Stack {
@@ -23,12 +25,16 @@ export class ECvProjectStack extends cdk.Stack {
     //     status : "Enabled"
     //   }
     // });
-
+    
     // // level2 bucket (the sweet spot) where everything necessary is auto. 
     // const level2S3Bucket = new Bucket(this,"MyFirstLevel2ConstructBucket",{
-    //   bucketName : "myfirstlevel2bucketirl",
-    //   versioned : true,
-    // });
+      //   bucketName : "myfirstlevel2bucketirl",
+      //   versioned : true,
+      // });
+      
+    // // Once the s3 object is created, add the event notification to queue
+    // level2S3Bucket.addEventNotification(EventType.OBJECT_CREATED,new SqsDestination(myQueue));
+
 
     const bucket = new Bucket(this, "ReportBucket", {
 
@@ -39,7 +45,7 @@ export class ECvProjectStack extends cdk.Stack {
       autoDeleteObjects : true,
       // Good practice for experiment data
 
-    })
+    });
 
 
     // Creating a sqsQueue
@@ -61,9 +67,10 @@ export class ECvProjectStack extends cdk.Stack {
     // granting lambda function to put data into bucket
     bucket.grantPut(fn);
 
-    
+    new events.Rule(this,"DailyRule",{
+      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      targets: [new targets.LambdaFunction(fn)],
+    });
 
-    // // Once the s3 object is created, add the event notification to queue
-    // level2S3Bucket.addEventNotification(EventType.OBJECT_CREATED,new SqsDestination(myQueue));
   }
 }
