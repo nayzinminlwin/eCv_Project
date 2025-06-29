@@ -1,0 +1,84 @@
+// import aws sdk and http modules
+const { rejects } = require("assert");
+const AWS = require("aws-sdk");
+const { log, timeStamp } = require("console");
+const https = require("https");
+const { resolve } = require("path");
+const s3 = new AWS.S3();
+
+exports.handler = async (event) => {
+  // log a message to cloudwatch logs
+  console.log("Lambda Function is running!!");
+
+  // optional : inspecting the incoming 'event'
+  console.log("Event received : " + JSON.stringify(event));
+
+  // i3
+  // https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false
+  // Prepared REST endpoint for the data fetch
+
+  // i3.1 : Define test URL for data fetch
+  const myURL =
+    "https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+
+  //i3.2 : Fetch JSON from URL
+  const rawData = await new Promise((resolve, reject) => {
+    https
+      .get(myURL, (res) => {
+        let body = "";
+
+        // collect data chunks
+        res.on("data", (chunk) => (body += chunk));
+
+        // On end, parse and resolve
+        res.on("end", () => {
+          try {
+            resolve(JSON.parse(body));
+          } catch (err) {
+            reject(new Error("Invalid JSON response"));
+          }
+        });
+      })
+      .on("error", reject);
+  });
+
+  //i3.3 : Transform into 'report' schema
+  // Example: pick just two specific fields from the raw JSON
+  const report = {
+    timestamp: new Date().toISOString(),
+    cryptoName: rawData.name,
+    currentPrice: rawData.current_price,
+    statusFlag: rawData.price_change_24h >= 1500,
+  };
+
+  //i3.4 : Log the transformed report object
+  console.log("Procesed report: ", JSON.stringify(report, null, 2));
+
+  // // Assemble a payload
+  // const payload = {
+  //   message: "This is test file from Lambda",
+  //   timeStamp: new Date().toISOString(),
+  // };
+
+  // // Bulding a S3 key under 'reports/' so it is easy to find
+  // const key = `reports/test-${Date.now()}.json`;
+
+  // await s3
+  //   .putObject({
+  //     Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
+  //     Key: key,
+  //     Body: JSON.stringify(payload, null, 2),
+  //     ContentType: "application/json",
+  //   })
+  //   .promise();
+
+  // console.log(
+  //   `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
+  // );
+
+  // return success to see in the Lambda console
+  return {
+    statusCode: 200,
+    body: JSON.stringify(report),
+  };
+};
