@@ -23,24 +23,26 @@ exports.handler = async (event) => {
 
   //i3.2 : Fetch JSON from URL
   const rawData = await new Promise((resolve, reject) => {
-    https
-      .get(myURL, (res) => {
-        let body = "";
+    https.get(myURL, (res) => {
+      let body = "";
 
-        // collect data chunks
-        res.on("data", (chunk) => (body += chunk));
+      // collect data chunks
+      res.on("data", (chunk) => (body += chunk));
 
-        // On end, parse and resolve
-        res.on("end", () => {
-          try {
-            resolve(JSON.parse(body));
-          } catch (err) {
-            reject(new Error("Invalid JSON response"));
-          }
-        });
-      })
-      .on("error", reject);
+      // On end, parse and resolve
+      res.on("end", () => resolve(body));
+
+      // Error catch
+      res.on("error", (err) => reject(err));
+    });
   });
+
+  // Parse the JSON and get the first object from the array
+  const parsedData = JSON.parse(rawData);
+  // const coinData = parsedData[0] || {};
+
+  // seeing the raw data
+  console.log("RawData response body : " + parsedData);
 
   //i3.3 : Transform into 'report' schema
   // Example: pick just two specific fields from the raw JSON
