@@ -59,8 +59,10 @@ exports.handler = async (event) => {
     );
   });
 
+  // [{object}]
   // Parse the JSON and get the first object from the array
   const parsedData = JSON.parse(rawData);
+  // array got only one room [0] and it hold the object.
   const coinData = parsedData[0] || {};
 
   // seeing the raw data
@@ -68,12 +70,12 @@ exports.handler = async (event) => {
 
   //i3.3 : Transform into 'report' schema
   // Example: pick just two specific fields from the raw JSON
-  const report = {
+  const report = [coinData].map((item) => ({
     timestamp: new Date().toISOString(),
     cryptoName: coinData.name,
     currentPrice: coinData.current_price,
     statusFlag: coinData.price_change_24h <= -500,
-  };
+  }));
 
   //i3.4 : Log the transformed report object
   console.log("Procesed report: ", JSON.stringify(report, null, 2));
