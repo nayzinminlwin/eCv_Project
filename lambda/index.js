@@ -23,34 +23,56 @@ exports.handler = async (event) => {
 
   //i3.2 : Fetch JSON from URL
   const rawData = await new Promise((resolve, reject) => {
-    https.get(myURL, (res) => {
-      let body = "";
+    https.get(
+      myURL,
+      {
+        // mimicking a valid user data fetch from chrome, avoiding 403 or bot denials.
+        headers: {
+          Accept: "application/json",
+          "User-Agent":
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+            "AppleWebKit/537.36 (KHTML, like Gecko) " +
+            "Chrome/114.0.0.0 Safari/537.36",
+        },
+      },
+      (res) => {
+        let body = "";
 
-      // collect data chunks
-      res.on("data", (chunk) => (body += chunk));
+        // Non-200 Response check
+        if (res.statusCode != 200) {
+          return reject(
+            new Error(
+              `Non-200 Response : ${res.statusCode} ${res.statusMessage}`
+            )
+          );
+        }
 
-      // On end, parse and resolve
-      res.on("end", () => resolve(body));
+        // collect data chunks
+        res.on("data", (chunk) => (body += chunk));
 
-      // Error catch
-      res.on("error", (err) => reject(err));
-    });
+        // On end, parse and resolve
+        res.on("end", () => resolve(body));
+
+        // Error catch
+        res.on("error", (err) => reject(err));
+      }
+    );
   });
 
   // Parse the JSON and get the first object from the array
   const parsedData = JSON.parse(rawData);
-  // const coinData = parsedData[0] || {};
+  const coinData = parsedData[0] || {};
 
   // seeing the raw data
-  console.log("RawData response body : " + parsedData);
+  console.log("RawData response body : " + JSON.stringify(coinData));
 
   //i3.3 : Transform into 'report' schema
   // Example: pick just two specific fields from the raw JSON
   const report = {
     timestamp: new Date().toISOString(),
-    cryptoName: rawData.name,
-    currentPrice: rawData.current_price,
-    statusFlag: rawData.price_change_24h >= 1500,
+    cryptoName: coinData.name,
+    currentPrice: coinData.current_price,
+    statusFlag: coinData.price_change_24h <= -500,
   };
 
   //i3.4 : Log the transformed report object
