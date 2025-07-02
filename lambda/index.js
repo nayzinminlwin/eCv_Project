@@ -86,21 +86,21 @@ exports.handler = async (event) => {
   //   timeStamp: new Date().toISOString(),
   // };
 
-  // // Bulding a S3 key under 'reports/' so it is easy to find
-  // const key = `reports/test-${Date.now()}.json`;
+  // Bulding a S3 key under 'reports/' so it is easy to find
+  const key = `reports/test-${Date.now()}.json`;
 
-  // await s3
-  //   .putObject({
-  //     Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
-  //     Key: key,
-  //     Body: JSON.stringify(payload, null, 2),
-  //     ContentType: "application/json",
-  //   })
-  //   .promise();
+  await s3
+    .putObject({
+      Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
+      Key: key,
+      Body: JSON.stringify(report, null, 2),
+      ContentType: "application/json",
+    })
+    .promise();
 
-  // console.log(
-  //   `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
-  // );
+  console.log(
+    `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
+  );
 
   // return success to see in the Lambda console
   return {
