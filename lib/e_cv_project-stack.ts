@@ -47,6 +47,7 @@ export class ECvProjectStack extends cdk.Stack {
     // Creating a sqsQueue
     const myQueue = new Queue(this, "MyQueue", {
       queueName: "MyQueue",
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
     });
 
     // Creating a lambda function
@@ -58,6 +59,7 @@ export class ECvProjectStack extends cdk.Stack {
         // pass the bucket name into the function as an environment variable
         BUCKET_NAME: bucket.bucketName,
       },
+      timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
     });
 
     // granting lambda function to put data into bucket
