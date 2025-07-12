@@ -7,6 +7,7 @@ const { resolve } = require("path");
 const s3 = new AWS.S3();
 
 exports.handler = async (event) => {
+  // i6
   try {
     // log a message to cloudwatch logs
     console.log("Lambda Function is running!!");
@@ -19,12 +20,16 @@ exports.handler = async (event) => {
     // Prepared REST endpoint for the data fetch
 
     // i3.1 : Define test URL for data fetch
+    // const myURL =
+    //   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+
+    // broken URL for error handling testing
     const myURL =
-      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+      "https://api.coi/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
 
     //i3.2 : Fetch JSON from URL
     const rawData = await new Promise((resolve, reject) => {
-      https.get(
+      const req = https.get(
         myURL,
         {
           // mimicking a valid user data fetch from chrome, avoiding 403 or bot denials.
@@ -58,6 +63,7 @@ exports.handler = async (event) => {
           res.on("error", (err) => reject(err));
         }
       );
+      req.on("error", (err) => reject(err));
     });
 
     // [{object}]
@@ -108,10 +114,9 @@ exports.handler = async (event) => {
       statusCode: 200,
       body: JSON.stringify(report),
     };
-
-    // here
-  } catch (error) {
-    console.error("❌ Pipeline failed : ", error);
-    throw error;
+    // i6
+  } catch (err) {
+    console.error("❌ Pipeline failed : ", err);
+    throw err;
   }
 };
