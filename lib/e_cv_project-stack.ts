@@ -66,7 +66,8 @@ export class ECvProjectStack extends cdk.Stack {
     bucket.grantPut(fn);
 
     new events.Rule(this, "DailyRule", {
-      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
       targets: [new targets.LambdaFunction(fn)],
     });
   }
