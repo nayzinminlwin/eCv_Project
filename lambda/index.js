@@ -119,6 +119,12 @@ exports.handler = async (event) => {
   } catch (err) {
     console.error("❌ Pipeline failed : ", err);
 
+    // checking if the environment variable is set
+    console.log(
+      "🔍 ERROR_ALERT_TOPIC_ARN =",
+      process.env.ERROR_ALERT_TOPIC_ARN
+    );
+
     // i7.1 : Prepare SNS params
     const params = {
       TopicArn: process.env.ERROR_ALERT_TOPIC_ARN, // injected by the CDK Stack
