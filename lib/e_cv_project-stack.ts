@@ -6,6 +6,8 @@ import { Construct } from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
+import * as sns from "aws-cdk-lib/aws-sns";
+import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 // import * as sqs from 'aws-cdk-lib/aws-sqs';
 
 export class ECvProjectStack extends cdk.Stack {
@@ -65,11 +67,26 @@ export class ECvProjectStack extends cdk.Stack {
     // granting lambda function to put data into bucket
     bucket.grantPut(fn);
 
-    new events.Rule(this, "DailyRule", {
-      description: "Daily rule to trigger the lambda function",
+    // schedule the lambda function to run every 5 minutes
+    new events.Rule(this, "FiveMinuteRule", {
+      description: "5min rule to trigger the lambda function",
       // schedule: events.Schedule.rate(cdk.Duration.days(1)),
       schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
       targets: [new targets.LambdaFunction(fn)],
     });
+
+    // i7: Create SNS topic for error alerts
+    const alertTopic = new sns.Topic(this, "ErrorAlertTopic", {
+      topicName: "ErrorAlertTopic",
+      displayName: "Error Alert Topic",
+    });
+
+    // i7: Subscribe an email address to the SNS topic
+    alertTopic.addSubscription(
+      new subs.EmailSubscription("nayzinminlwin22@gmail.com")
+    );
+
+    // i7: grant publish permissions to the lambda function
+    alertTopic.grantPublish(fn);
   }
 }
