@@ -52,6 +52,17 @@ export class ECvProjectStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
     });
 
+    // i7: Create SNS topic for error alerts
+    const alertTopic = new sns.Topic(this, "ErrorAlertTopic", {
+      topicName: "ErrorAlertTopic",
+      displayName: "Pipeline Error Alerts",
+    });
+
+    // i7: Subscribe an email address to the SNS topic
+    alertTopic.addSubscription(
+      new subs.EmailSubscription("nayzinminlwin22@gmail.com")
+    );
+
     // Creating a lambda function
     const fn = new lambda.Function(this, "FetcherFunction", {
       runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
@@ -60,9 +71,13 @@ export class ECvProjectStack extends cdk.Stack {
       environment: {
         // pass the bucket name into the function as an environment variable
         BUCKET_NAME: bucket.bucketName,
+        ERROR_ALERT_TOPIC_ARN: alertTopic.topicArn, // pass the SNS topic ARN into the function as an environment variable
       },
       timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
     });
+
+    // i7: grant publish permissions to the lambda function
+    alertTopic.grantPublish(fn);
 
     // granting lambda function to put data into bucket
     bucket.grantPut(fn);
@@ -74,19 +89,5 @@ export class ECvProjectStack extends cdk.Stack {
       schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
       targets: [new targets.LambdaFunction(fn)],
     });
-
-    // i7: Create SNS topic for error alerts
-    const alertTopic = new sns.Topic(this, "ErrorAlertTopic", {
-      topicName: "ErrorAlertTopic",
-      displayName: "Error Alert Topic",
-    });
-
-    // i7: Subscribe an email address to the SNS topic
-    alertTopic.addSubscription(
-      new subs.EmailSubscription("nayzinminlwin22@gmail.com")
-    );
-
-    // i7: grant publish permissions to the lambda function
-    alertTopic.grantPublish(fn);
   }
 }

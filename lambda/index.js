@@ -5,6 +5,7 @@ const { log, timeStamp } = require("console");
 const https = require("https");
 const { resolve } = require("path");
 const s3 = new AWS.S3();
+const sns = new AWS.SNS();
 
 exports.handler = async (event) => {
   // i6
@@ -117,6 +118,22 @@ exports.handler = async (event) => {
     // i6
   } catch (err) {
     console.error("❌ Pipeline failed : ", err);
+
+    // i7.1 : Prepare SNS params
+    const params = {
+      TopicArn: process.env.ERROR_ALERT_TOPIC_ARN, // injected by the CDK Stack
+      Subject: `Lambda Pipeline Failed in ${process.env.AWS_LAMBDA_FUNCTION_NAME}`,
+      Message:
+        `Error occurred at ${new Date().toISOString()}\n\n` +
+        `Error details: ${err.message}\n\n` +
+        `Stack trace: ${err.stack}`,
+    };
+
+    // i7.1 : Publish to SNS
+    await sns.publish(params).promise();
+    console.error("❌ SNS Notification sent for failure");
+
+    // Re-throw the error to stop the pipeline
     throw err;
   }
 };
