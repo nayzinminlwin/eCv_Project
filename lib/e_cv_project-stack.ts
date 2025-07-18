@@ -9,6 +9,7 @@ import * as sns from "aws-cdk-lib/aws-sns";
 import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 // import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
+import * as dynamoDB from "aws-cdk-lib/aws-dynamodb";
 
 export class ECvProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -120,6 +121,22 @@ export class ECvProjectStack extends cdk.Stack {
       destinationBucket: siteBucket,
       destinationKeyPrefix: "/", // Optional: specify a prefix for the files in the bucket
       retainOnDelete: false, // Do not retain files when the stack is deleted
+    });
+
+    // i8.2: Define DynamoDB table for User Alert Configs
+    const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+      tableName: "UserAlertConfigs", // Optional: specify a table name
+
+      partitionKey: {
+        name: "userId",
+        type: dynamoDB.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "alertID",
+        type: dynamoDB.AttributeType.STRING,
+      },
+      billingMode: dynamoDB.BillingMode.PROVISIONED, // Use provisioned billing mode
+      removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
     });
   }
 }
