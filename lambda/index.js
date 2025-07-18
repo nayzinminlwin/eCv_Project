@@ -20,13 +20,16 @@ exports.handler = async (event) => {
     // https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false
     // Prepared REST endpoint for the data fetch
 
-    // i3.1 : Define test URL for data fetch
-    // const myURL =
-    //   "https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+    // supported currencies: https://api.coingecko.com/api/v3/simple/supported_vs_currencies
 
-    // broken URL for error handling testing
+    // i3.1 : Define test URL for data fetch
     const myURL =
-      "https://api.coi/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+      "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&symbol=btc&order=market_cap_desc&per_page=1&page=1&sparkline=false";
+
+    // Uncomment below to test with a broken URL
+    // // broken URL for error handling testing
+    // const myURL =
+    //   "https://api.coi/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
 
     //i3.2 : Fetch JSON from URL
     const rawData = await new Promise((resolve, reject) => {
