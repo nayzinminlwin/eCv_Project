@@ -10,6 +10,8 @@ import * as subs from "aws-cdk-lib/aws-sns-subscriptions";
 // import * as sqs from "aws-cdk-lib/aws-sqs";
 import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as dynamoDB from "aws-cdk-lib/aws-dynamodb";
+import * as apigw from "aws-cdk-lib/aws-apigatewayv2";
+import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
 
 export class ECvProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -128,15 +130,54 @@ export class ECvProjectStack extends cdk.Stack {
       tableName: "UserAlertConfigs", // Optional: specify a table name
 
       partitionKey: {
-        name: "userId",
+        name: "userID",
         type: dynamoDB.AttributeType.STRING,
       },
+
       sortKey: {
         name: "alertID",
         type: dynamoDB.AttributeType.STRING,
       },
-      billingMode: dynamoDB.BillingMode.PROVISIONED, // Use provisioned billing mode
+      billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+    });
+
+    // i8.3 : Save Alert API and Lambda Function
+    // new Lambda funtion to handle POST /alerts
+    const saveAlertFn = new lambda.Function(this, " SaveAlertFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "saveAlert.handler", // point to export.handler in saveAlert.js
+      code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      environment: {
+        TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
+      },
+      timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
+    });
+
+    // Grant the Lambda function permissions to write to the DynamoDB table
+    alertConfigsTable.grantWriteData(saveAlertFn); // grant write permissions to the lambda function
+
+    // Create an HTTP API
+    const api = new apigw.HttpApi(this, "AlertApi", {
+      apiName: "UserAlertApi",
+      createDefaultStage: true, // auto-deploy to "$default" stage
+    });
+
+    // Write POST /alerts -> lambda
+    api.addRoutes({
+      path: "/alerts",
+      methods: [apigw.HttpMethod.POST],
+      integration: new integrations.HttpLambdaIntegration(
+        "SaveAlertIntegration",
+        saveAlertFn
+      ),
+    });
+
+    // Output the API endpoint URL
+    new cdk.CfnOutput(this, "ApiEndpoint", {
+      value: api.url ?? "No URL available",
+      description: "The endpoint URL of the User Alert API",
+      exportName: "UserAlertApiEndpoint", // Optional: export the URL for use in other stacks
     });
   }
 }
