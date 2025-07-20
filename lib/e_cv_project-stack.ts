@@ -117,14 +117,6 @@ export class ECvProjectStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // i8.1: Deploy static website files to the S3 bucket
-    new s3deploy.BucketDeployment(this, "DeploySite", {
-      sources: [s3deploy.Source.asset("../ECV_PROJECT/site")], // Path to your static website files
-      destinationBucket: siteBucket,
-      destinationKeyPrefix: "/", // Optional: specify a prefix for the files in the bucket
-      retainOnDelete: false, // Do not retain files when the stack is deleted
-    });
-
     // i8.2: Define DynamoDB table for User Alert Configs
     const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
       tableName: "UserAlertConfigs", // Optional: specify a table name
@@ -161,6 +153,11 @@ export class ECvProjectStack extends cdk.Stack {
     const api = new apigw.HttpApi(this, "AlertApi", {
       apiName: "UserAlertApi",
       createDefaultStage: true, // auto-deploy to "$default" stage
+      corsPreflight: {
+        allowOrigins: ["*"], // Allow all origins
+        allowMethods: [apigw.CorsHttpMethod.POST, apigw.CorsHttpMethod.OPTIONS], // Allow POST and OPTIONS methods
+        allowHeaders: ["Content-Type"], // Allow Content-Type header
+      },
     });
 
     // Write POST /alerts -> lambda
@@ -178,6 +175,20 @@ export class ECvProjectStack extends cdk.Stack {
       value: api.url ?? "No URL available",
       description: "The endpoint URL of the User Alert API",
       exportName: "UserAlertApiEndpoint", // Optional: export the URL for use in other stacks
+    });
+
+    // i8.1: Deploy static website files to the S3 bucket
+    new s3deploy.BucketDeployment(this, "DeploySite", {
+      sources: [
+        s3deploy.Source.asset("../ECV_PROJECT/site"),
+        // i8.4 : Add a JSON file with the API URL
+        s3deploy.Source.jsonData("config.json", {
+          apiUrl: api.url! + "alerts", // Replace with your actual API URL
+        }),
+      ], // Path to your static website files
+      destinationBucket: siteBucket,
+      destinationKeyPrefix: "/", // Optional: specify a prefix for the files in the bucket
+      retainOnDelete: false, // Do not retain files when the stack is deleted
     });
   }
 }

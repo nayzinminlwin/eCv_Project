@@ -1,3 +1,14 @@
+let apiUrl;
+
+fetch("/config.json")
+  .then((response) => response.json())
+  .then((data) => {
+    apiUrl = data.apiUrl;
+  })
+  .catch((error) => {
+    console.error("Error fetching config:", error);
+  });
+
 document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("tradeForm");
   const conditionSelect = document.getElementById("condition");
@@ -117,9 +128,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Delete button handler
   deleteBtn.addEventListener("click", async () => {
-    const userId = document.getElementById("userId").value;
-    if (!userId) {
-      showError("userId", "User ID is required for deletion");
+    const userID = document.getElementById("userID").value;
+    if (!userID) {
+      showError("userID", "User ID is required for deletion");
       return;
     }
 
@@ -130,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (confirmed) {
       try {
-        const response = await fetch(`/api/trade/${userId}`, {
+        const response = await fetch(`/api/trade/${userID}`, {
           method: "DELETE",
         });
 
@@ -155,25 +166,26 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const formData = {
-      userId: document.getElementById("userId").value,
+      userID: document.getElementById("userID").value,
       email: document.getElementById("email").value,
       symbol: document.getElementById("symbol").value,
       condition: conditionSelect.value,
     };
 
     if (condition === "entCh" || condition === "exCh") {
-      formData.upperBound = parseFloat(
-        document.getElementById("upperBound").value
-      );
+      formData.price = parseFloat(document.getElementById("upperBound").value);
       formData.lowerBound = parseFloat(
         document.getElementById("lowerBound").value
       );
     } else {
       formData.price = parseFloat(document.getElementById("price").value);
+      formData.lowerBound = 0.0; // Default lower bound for price conditions
     }
 
+    // console.log("Form Data: ", formData);
+
     try {
-      const response = await fetch("/api/submitTrade", {
+      const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -181,11 +193,16 @@ document.addEventListener("DOMContentLoaded", () => {
         body: JSON.stringify(formData),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error("Submission failed");
+        throw new Error(`Submission failed. Message: ${data.message || ""}`);
       }
 
-      await showAlert("Trade submitted successfully", "Success");
+      await showAlert(
+        `Trade submitted successfully for ${formData.userID}`,
+        "Success"
+      );
       form.reset();
     } catch (error) {
       await showAlert("Error submitting trade: " + error.message, "Error");
@@ -200,9 +217,9 @@ document.addEventListener("DOMContentLoaded", () => {
     clearErrors();
 
     // Validate User ID
-    const userId = document.getElementById("userId").value;
-    if (!userId) {
-      showError("userId", "User ID is required");
+    const userID = document.getElementById("userID").value;
+    if (!userID) {
+      showError("userID", "User ID is required");
       isValid = false;
     }
 

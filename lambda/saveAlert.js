@@ -6,24 +6,39 @@ const db = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async (event) => {
   try {
+    // i8.1 : Log incoming event
+    console.log(
+      "😴 Received event:",
+      JSON.stringify({
+        isBase64: event.isBase64Encoded,
+        headers: event.headers,
+        body: event.body,
+      })
+    );
+
     // 0. parse JSON body
-    const { userID, symbol, condition, threshold } = JSON.parse(
+    const { userID, email, symbol, condition, price, lowerBound } = JSON.parse(
       event.body || "{}"
     );
 
     // 1. validate input
     if (
       !userID ||
+      userID.trim() === "" ||
+      !email ||
       !symbol ||
       !condition ||
-      threshold === null ||
-      threshold === undefined
+      price === null ||
+      price === undefined ||
+      lowerBound === null ||
+      lowerBound === undefined
     ) {
       return {
         statusCode: 400,
         body: JSON.stringify({
           error:
-            "Missing required fields: userID, symbol, condition, threshold",
+            "Missing required fields: userID, email, symbol, condition, price, lowerBound",
+          message: "Please provide all required fields.",
         }),
       };
     }
@@ -37,10 +52,12 @@ exports.handler = async (event) => {
         TableName: process.env.TABLE_NAME, // injected by CDK
         Item: {
           userID,
+          email,
           alertID,
           symbol,
           condition,
-          threshold,
+          price,
+          lowerBound,
           createdAt: new Date().toISOString(),
         },
       })
