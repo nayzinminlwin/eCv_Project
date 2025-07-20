@@ -3,10 +3,108 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>User Config Site</title>
+    <title>Trade Alert System</title>
+    <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <h1>Welcome to the User Config Site</h1>
-    <p>UI live here</p>
+    <div class="container">
+      <form id="tradeForm" novalidate>
+        <h1>Trade Alert System</h1>
+
+        <div class="form-group">
+          <label for="userId">User ID:</label>
+          <input type="text" id="userId" name="userId" required />
+          <span class="error" id="userIdError"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" name="email" required />
+          <span class="error" id="emailError"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="symbol">Symbol:</label>
+          <select id="symbol" name="symbol" required>
+            <option value="">Select a symbol</option>
+            <option value="btc">Bitcoin (BTC)</option>
+            <option value="eth">Ethereum (ETH)</option>
+            <option value="bnb">Binance Coin (BNB)</option>
+            <option value="sol">Solana (SOL)</option>
+          </select>
+          <span class="error" id="symbolError"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="condition">Condition:</label>
+          <select id="condition" name="condition" required>
+            <option value="crossUp">Crossing Up</option>
+            <option value="crossDown">Crossing Down</option>
+            <option value="cross">Crossing</option>
+            <option value="entCh">Entering Channel</option>
+            <option value="exCh">Exiting Channel</option>
+            <option value="priceChange_24">Price Change (24h)</option>
+            <option value="24_High">24h High</option>
+            <option value="24_Low">24h Low</option>
+          </select>
+          <span class="error" id="conditionError"></span>
+        </div>
+
+        <div
+          class="form-group bound-fields"
+          id="boundFields"
+          style="display: none"
+        >
+          <div class="bound-input">
+            <label for="upperBound">Upper Bound:</label>
+            <input type="number" id="upperBound" name="upperBound" min="0" />
+            <span class="error" id="upperBoundError"></span>
+          </div>
+          <div class="bound-input">
+            <label for="lowerBound">Lower Bound:</label>
+            <input type="number" id="lowerBound" name="lowerBound" min="0" />
+            <span class="error" id="lowerBoundError"></span>
+          </div>
+        </div>
+
+        <div class="form-group" id="priceField">
+          <label for="price">Price:</label>
+          <input type="number" id="price" name="price" min="0" required />
+          <span class="error" id="priceError"></span>
+        </div>
+
+        <div class="button-group">
+          <button type="submit" class="btn btn-primary">Start</button>
+          <button type="button" class="btn btn-danger" id="deleteBtn">
+            Delete
+          </button>
+          <button type="reset" class="btn btn-secondary">Cancel</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Custom Modal for alerts and confirms -->
+    <div id="modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 id="modal-title">Notice</h2>
+        </div>
+        <div class="modal-body">
+          <p id="modal-message"></p>
+        </div>
+        <div class="modal-footer">
+          <button
+            id="modal-cancel"
+            class="btn btn-secondary"
+            style="display: none"
+          >
+            Cancel
+          </button>
+          <button id="modal-confirm" class="btn btn-primary">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="main.js"></script>
   </body>
 </html>

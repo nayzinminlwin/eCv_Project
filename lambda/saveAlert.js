@@ -6,12 +6,12 @@ const db = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async (event) => {
   try {
-    // parse JSON body
+    // 0. parse JSON body
     const { userID, symbol, condition, threshold } = JSON.parse(
       event.body || "{}"
     );
 
-    // validate input
+    // 1. validate input
     if (
       !userID ||
       !symbol ||
@@ -56,11 +56,11 @@ exports.handler = async (event) => {
       }),
     };
   } catch (error) {
-    console.error("Error saving alert:", error);
+    console.error("❌ Error saving alert:", error);
     return {
       statusCode: 500,
       body: JSON.stringify({
-        error: "Failed to save alert",
+        error: "❌ Failed to save alert",
         message: error.message,
       }),
     };
