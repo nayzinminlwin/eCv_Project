@@ -155,7 +155,11 @@ export class ECvProjectStack extends cdk.Stack {
       createDefaultStage: true, // auto-deploy to "$default" stage
       corsPreflight: {
         allowOrigins: ["*"], // Allow all origins
-        allowMethods: [apigw.CorsHttpMethod.POST, apigw.CorsHttpMethod.OPTIONS], // Allow POST and OPTIONS methods
+        allowMethods: [
+          apigw.CorsHttpMethod.POST,
+          apigw.CorsHttpMethod.OPTIONS,
+          apigw.CorsHttpMethod.DELETE,
+        ], // Allow POST and OPTIONS and DELETE methods
         allowHeaders: ["Content-Type"], // Allow Content-Type header
       },
     });
@@ -167,6 +171,30 @@ export class ECvProjectStack extends cdk.Stack {
       integration: new integrations.HttpLambdaIntegration(
         "SaveAlertIntegration",
         saveAlertFn
+      ),
+    });
+
+    // i8.4 : Delete Alert API and Lambda Function
+    // new Lambda function to handle DELETE /alerts
+    const deleteAlertFn = new lambda.Function(this, "DeleteAlertFunction", {
+      runtime: lambda.Runtime.NODEJS_18_X,
+      handler: "deleteAlert.handler", // point to export.handler in deleteAlert.js
+      code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      environment: {
+        TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
+      },
+      timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
+    });
+
+    // Grant the Lambda function permissions to delete from the DynamoDB table
+    alertConfigsTable.grantWriteData(deleteAlertFn); // grant write permissions to the lambda function
+
+    api.addRoutes({
+      path: "/alerts/delete/{userID}/{alertID}", // Define the path with userID and alertID as path parameters
+      methods: [apigw.HttpMethod.DELETE],
+      integration: new integrations.HttpLambdaIntegration(
+        "DeleteAlertIntegration",
+        deleteAlertFn
       ),
     });
 

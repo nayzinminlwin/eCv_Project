@@ -139,9 +139,12 @@ document.addEventListener("DOMContentLoaded", () => {
       "Delete Trade"
     );
 
+    const deleteUrl = `${apiUrl}/delete/${userID}/USER${userID}`;
+    // console.log("Delete URL:", deleteUrl);
+
     if (confirmed) {
       try {
-        const response = await fetch(`/api/trade/${userID}`, {
+        const response = await fetch(deleteUrl, {
           method: "DELETE",
         });
 
@@ -183,6 +186,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // console.log("Form Data: ", formData);
+
+    console.log("Url", apiUrl);
 
     try {
       const response = await fetch(apiUrl, {

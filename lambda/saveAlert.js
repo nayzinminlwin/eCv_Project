@@ -44,7 +44,7 @@ exports.handler = async (event) => {
     }
 
     // 2. Generate unique alert ID
-    const alertID = `${userID}-${symbol}-${Date.now()}`;
+    const alertID = `USER${userID}`;
 
     // 3. Write to DynamoDB
     await db
