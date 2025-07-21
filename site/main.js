@@ -6,7 +6,7 @@ fetch("/config.json")
     apiUrl = data.apiUrl;
   })
   .catch((error) => {
-    console.error("❌ Error fetching config:", error);
+    console.error("Error fetching config:", error);
   });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -20,6 +20,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalMessage = document.getElementById("modal-message");
   const modalConfirm = document.getElementById("modal-confirm");
   const modalCancel = document.getElementById("modal-cancel");
+  const loadingOverlay = document.getElementById("loadingOverlay");
+
+  // Loading state management
+  function showLoading() {
+    loadingOverlay.style.display = "flex";
+    document.body.style.overflow = "hidden";
+    form.classList.add("form-loading");
+    setTimeout(() => loadingOverlay.classList.add("show"), 10);
+  }
+
+  function hideLoading() {
+    loadingOverlay.classList.remove("show");
+    setTimeout(() => {
+      loadingOverlay.style.display = "none";
+      document.body.style.overflow = "";
+      form.classList.remove("form-loading");
+    }, 300);
+  }
 
   // Custom alert/confirm functions
   function showModal(title, message, isConfirm = false) {
@@ -143,6 +161,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // console.log("Delete URL:", deleteUrl);
 
     if (confirmed) {
+      showLoading();
       try {
         const response = await fetch(deleteUrl, {
           method: "DELETE",
@@ -152,9 +171,11 @@ document.addEventListener("DOMContentLoaded", () => {
           throw new Error("Delete operation failed");
         }
 
+        hideLoading();
         await showAlert("Trade deleted successfully", "Success");
         form.reset();
       } catch (error) {
+        hideLoading();
         await showAlert(error.message, "Error");
       }
     }
@@ -175,8 +196,10 @@ document.addEventListener("DOMContentLoaded", () => {
       condition: conditionSelect.value,
     };
 
-    if (condition === "entCh" || condition === "exCh") {
-      formData.price = parseFloat(document.getElementById("upperBound").value);
+    if (conditionSelect.value === "entCh" || conditionSelect.value === "exCh") {
+      formData.upperBound = parseFloat(
+        document.getElementById("upperBound").value
+      );
       formData.lowerBound = parseFloat(
         document.getElementById("lowerBound").value
       );
@@ -185,10 +208,7 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.lowerBound = 0.0; // Default lower bound for price conditions
     }
 
-    // console.log("Form Data: ", formData);
-
-    console.log("Url", apiUrl);
-
+    showLoading();
     try {
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -204,12 +224,14 @@ document.addEventListener("DOMContentLoaded", () => {
         throw new Error(`Submission failed. Message: ${data.message || ""}`);
       }
 
+      hideLoading();
       await showAlert(
         `Trade submitted successfully for ${formData.userID}`,
         "Success"
       );
       form.reset();
     } catch (error) {
+      hideLoading();
       await showAlert("Error submitting trade: " + error.message, "Error");
     }
   });
