@@ -6,7 +6,7 @@ fetch("/config.json")
     apiUrl = data.apiUrl;
   })
   .catch((error) => {
-    console.error("Error fetching config:", error);
+    console.error("❌ Error fetching config:", error);
   });
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -218,7 +218,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Validate User ID
     const userID = document.getElementById("userID").value;
-    if (!userID) {
+    if (!userID || userID.trim() === "") {
       showError("userID", "User ID is required");
       isValid = false;
     }
