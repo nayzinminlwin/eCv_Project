@@ -76,7 +76,7 @@ export class ECvProjectStack extends cdk.Stack {
     );
 
     // Creating a lambda function
-    const fn = new lambda.Function(this, "FetcherFunction", {
+    const fetcherFn = new lambda.Function(this, "FetcherFunction", {
       runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
       handler: "index.handler", // point to export.handler in index.js
       code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
@@ -89,17 +89,17 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // i7: grant publish permissions to the lambda function
-    alertTopic.grantPublish(fn);
+    alertTopic.grantPublish(fetcherFn);
 
     // granting lambda function to put data into bucket
-    bucket.grantPut(fn);
+    bucket.grantPut(fetcherFn);
 
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
       description: "5min rule to trigger the lambda function",
-      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
-      schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
-      targets: [new targets.LambdaFunction(fn)],
+      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      // schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
+      targets: [new targets.LambdaFunction(fetcherFn)],
     });
 
     // i8.1: S3 bucket for static website hosting
@@ -218,5 +218,17 @@ export class ECvProjectStack extends cdk.Stack {
       destinationKeyPrefix: "/", // Optional: specify a prefix for the files in the bucket
       retainOnDelete: false, // Do not retain files when the stack is deleted
     });
+
+    // i8.5: Grant schedule Lambda DynamoDB read permissions
+    const table: dynamoDB.ITable = alertConfigsTable;
+    table.grantReadData(fetcherFn); // grant read permissions to the lambda function
+
+    // i8.5: SNS publish permissions to the lambda function
+    const userAlertTopic = new sns.Topic(this, "UserAlertTopic", {
+      topicName: "UserAlertTopic",
+      displayName: "User Alert Notifications",
+    });
+    fetcherFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn); // pass the SNS topic ARN into the function as an environment variable
+    userAlertTopic.grantPublish(fetcherFn); // grant publish permissions to the lambda function
   }
 }
