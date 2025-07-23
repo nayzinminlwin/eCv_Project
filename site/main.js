@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", () => {
         document.getElementById("lowerBound").value
       );
     } else {
-      formData.price = parseFloat(document.getElementById("price").value);
+      formData.upperBound = parseFloat(document.getElementById("price").value);
       formData.lowerBound = 0.0; // Default lower bound for price conditions
     }
 

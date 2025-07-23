@@ -71,9 +71,11 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // i7: Subscribe an email address to the SNS topic
-    alertTopic.addSubscription(
+    const alertSub = alertTopic.addSubscription(
       new subs.EmailSubscription("nayzinminlwin22@gmail.com")
     );
+    // Retain the subscription when the stack is deleted
+    alertSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // Creating a lambda function
     const fetcherFn = new lambda.Function(this, "FetcherFunction", {
@@ -228,7 +230,18 @@ export class ECvProjectStack extends cdk.Stack {
       topicName: "UserAlertTopic",
       displayName: "User Alert Notifications",
     });
-    fetcherFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn); // pass the SNS topic ARN into the function as an environment variable
-    userAlertTopic.grantPublish(fetcherFn); // grant publish permissions to the lambda function
+
+    // pass the SNS topic ARN into the function as an environment variable
+    fetcherFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn);
+
+    // grant publish permissions to the lambda function
+    userAlertTopic.grantPublish(fetcherFn);
+
+    // retain SNS mail subscriptions after stack deletion
+    userAlertTopic.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+
+    // i8.6: Pass the table name into the function as an environment variable
+    // pass the table name into the function as an environment variable
+    fetcherFn.addEnvironment("TABLE_NAME", alertConfigsTable.tableName);
   }
 }

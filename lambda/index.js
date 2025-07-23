@@ -6,12 +6,31 @@ const https = require("https");
 const { resolve } = require("path");
 const s3 = new AWS.S3();
 const sns = new AWS.SNS();
+const db = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async (event) => {
   // i6
   try {
     // log a message to cloudwatch logs
     console.log("Lambda Function is running!!");
+
+    // i8.6: Load all alert configurations from DynamoDB
+    let alertConfigs;
+    try {
+      const result = await db
+        .scan({
+          TableName: process.env.TABLE_NAME, // injected by CDK
+        })
+        .promise();
+      alertConfigs = result.Items || [];
+      console.log(
+        `Loaded ${alertConfigs.length} alert configs: `,
+        JSON.stringify(alertConfigs, null, 2)
+      );
+    } catch (err) {
+      console.error("❌ Failed to load alert configurations: ", err);
+      throw err;
+    }
 
     // optional : inspecting the incoming 'event'
     console.log("Event received : " + JSON.stringify(event));

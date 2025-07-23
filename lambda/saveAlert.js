@@ -17,9 +17,8 @@ exports.handler = async (event) => {
     );
 
     // 0. parse JSON body
-    const { userID, email, symbol, condition, price, lowerBound } = JSON.parse(
-      event.body || "{}"
-    );
+    const { userID, email, symbol, condition, upperBound, lowerBound } =
+      JSON.parse(event.body || "{}");
 
     // 1. validate input
     if (
@@ -28,8 +27,8 @@ exports.handler = async (event) => {
       !email ||
       !symbol ||
       !condition ||
-      price === null ||
-      price === undefined ||
+      upperBound === null ||
+      upperBound === undefined ||
       lowerBound === null ||
       lowerBound === undefined
     ) {
@@ -56,7 +55,7 @@ exports.handler = async (event) => {
           alertID,
           symbol,
           condition,
-          price,
+          price: upperBound,
           lowerBound,
           createdAt: new Date().toISOString(),
         },
