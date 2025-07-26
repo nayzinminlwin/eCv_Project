@@ -166,22 +166,92 @@ export class ECvProjectStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // i8.2: Define DynamoDB table for User Alert Configs
-    const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
-      tableName: "UserAlertConfigs", // Optional: specify a table name
+    // old way to create DynamoDB table
+    {
+      // // i8.2: Define DynamoDB table for User Alert Configs
+      // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+      //   tableName: "UserAlertConfigs", // Optional: specify a table name
+      //   partitionKey: {
+      //     name: "userID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   sortKey: {
+      //     name: "alertID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
+      //   // removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain the table when the stack is destroyed
+      // });
+    }
 
-      partitionKey: {
-        name: "userID",
-        type: dynamoDB.AttributeType.STRING,
-      },
+    // new way to create DynamoDB with aws custom resource
+    const dynamoDBTable_name = "UserAlertConfigs";
 
-      sortKey: {
-        name: "alertID",
-        type: dynamoDB.AttributeType.STRING,
-      },
-      billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-      // removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain the table when the stack is destroyed
+    const ensureAlertConfigsTable = new AwsCustomResource(
+      this,
+      "EnsureAlertConfigsTable",
+      {
+        onCreate: {
+          service: "DynamoDB",
+          action: "createTable",
+          parameters: {
+            TableName: dynamoDBTable_name,
+            AttributeDefinitions: [
+              {
+                AttributeName: "userID",
+                AttributeType: "S",
+              },
+              {
+                AttributeName: "alertID",
+                AttributeType: "S",
+              },
+            ],
+            KeySchema: [
+              {
+                AttributeName: "userID",
+                KeyType: "HASH",
+              },
+              {
+                AttributeName: "alertID",
+                KeyType: "RANGE",
+              },
+            ],
+            BillingMode: "PAY_PER_REQUEST", // Use on-demand billing mode
+          },
+          // DynamoDB arn will be used as the physical resource ID
+          physicalResourceId: PhysicalResourceId.of("TableArn"),
+          ignoreErrorCodesMatching: "ResourceInUseException", // Ignore if the table already exists
+        },
+        onUpdate: {
+          service: "DynamoDB",
+          action: "describeTable",
+          parameters: {
+            TableName: dynamoDBTable_name,
+          },
+          physicalResourceId: PhysicalResourceId.of("TableArn"),
+          ignoreErrorCodesMatching: "ResourceNotFoundException", // Ignore if the table does not exist
+        },
+        policy: AwsCustomResourcePolicy.fromSdkCalls({
+          resources: AwsCustomResourcePolicy.ANY_RESOURCE,
+        }),
+      }
+    );
+
+    // Get the table arn from the custom resource
+    // const alertConfigsTableArn =
+    //   ensureAlertConfigsTable.getResponseField("TableArn");
+    const alertConfigsTableArn = this.formatArn({
+      service: "dynamodb",
+      resource: "table",
+      resourceName: dynamoDBTable_name,
+      arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
     });
+
+    const alertConfigsTable = dynamoDB.Table.fromTableArn(
+      this,
+      "AlertConfigsTable",
+      alertConfigsTableArn
+    );
 
     // i8.3 : Save Alert API and Lambda Function
     // new Lambda funtion to handle POST /alerts
