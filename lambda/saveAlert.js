@@ -3,6 +3,7 @@
 
 const AWS = require("aws-sdk");
 const db = new AWS.DynamoDB.DocumentClient();
+const sns = new AWS.SNS();
 
 exports.handler = async (event) => {
   try {
@@ -62,11 +63,38 @@ exports.handler = async (event) => {
       })
       .promise();
 
+    // SNS mail subscription
+    const subs = await sns
+      .listSubscriptionsByTopic({
+        TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+      })
+      .promise();
+
+    // Check if email is already subscribed
+    const emailExists = subs.Subscriptions.find(
+      (sub) => sub.Endpoint === email && sub.Protocol === "email"
+    );
+
+    // If not subscribed, add the email to the SNS topic
+    if (!emailExists) {
+      await sns
+        .subscribe({
+          TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+          Protocol: "email",
+          Endpoint: email, // user's email
+        })
+        .promise();
+      console.log(
+        `✅ Subscribed ${email} to alerts topic. Confirm via mail inbox.`
+      );
+    }
+
     // 4. Return success response
     return {
       statusCode: 201,
       body: JSON.stringify({
-        message: "Alert saved successfully",
+        message:
+          "Alert saved successfully.\nPlease confirm your email subscription.",
         userID,
         alertID,
       }),

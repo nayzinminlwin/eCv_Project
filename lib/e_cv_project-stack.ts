@@ -17,6 +17,7 @@ import {
   PhysicalResourceId,
   AwsCustomResourcePolicy,
 } from "aws-cdk-lib/custom-resources"; // custom resource for flexible SNS topic removal and recreation
+import * as iam from "aws-cdk-lib/aws-iam";
 
 export class ECvProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -179,7 +180,7 @@ export class ECvProjectStack extends cdk.Stack {
         type: dynamoDB.AttributeType.STRING,
       },
       billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+      // removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain the table when the stack is destroyed
     });
 
     // i8.3 : Save Alert API and Lambda Function
@@ -271,14 +272,47 @@ export class ECvProjectStack extends cdk.Stack {
     const table: dynamoDB.ITable = alertConfigsTable;
     table.grantReadData(fetcherFn); // grant read permissions to the lambda function
 
-    // i8.5: SNS publish permissions to the lambda function
-    const userAlertTopic = new sns.Topic(this, "UserAlertTopic", {
-      topicName: "UserAlertTopic",
-      displayName: "User Alert Notifications",
-    });
+    // // i8.5: SNS publish permissions to the lambda function
+    // const userAlertTopic = new sns.Topic(this, "UserAlertTopic", {
+    //   topicName: "UserAlertTopic",
+    //   displayName: "User Alert Notifications",
+    // });
+
+    // i8.7: new way to create SNS topic
+    const userAlertTopic_name = "User-Alert-Topic";
+
+    // Ensure the SNS topic exists, creating it if it doesn't
+    const ensureUserAlertTopic = new AwsCustomResource(
+      this,
+      "EnsureUserAlertTopic",
+      {
+        onCreate: {
+          service: "SNS",
+          action: "createTopic",
+          parameters: {
+            Name: userAlertTopic_name,
+            displayName: "User Alert Notifications",
+          },
+          // SNS topic ARN will be used as the physical resource ID
+          physicalResourceId: PhysicalResourceId.fromResponse("TopicArn"),
+        },
+        policy: AwsCustomResourcePolicy.fromSdkCalls({
+          resources: AwsCustomResourcePolicy.ANY_RESOURCE,
+        }),
+      }
+    );
+
+    // Get the topic ARN from the custom resource
+    const userAlertTopicArn = ensureUserAlertTopic.getResponseField("TopicArn");
+    const userAlertTopic = sns.Topic.fromTopicArn(
+      this,
+      "UserAlertTopic",
+      userAlertTopicArn
+    );
 
     // pass the SNS topic ARN into the function as an environment variable
     fetcherFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn);
+    saveAlertFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn);
 
     // grant publish permissions to the lambda function
     userAlertTopic.grantPublish(fetcherFn);
@@ -289,5 +323,15 @@ export class ECvProjectStack extends cdk.Stack {
     // i8.6: Pass the table name into the function as an environment variable
     // pass the table name into the function as an environment variable
     fetcherFn.addEnvironment("TABLE_NAME", alertConfigsTable.tableName);
+
+    // i8.7: User Alerts SNS topic subscription
+    userAlertTopic.grantSubscribe(saveAlertFn);
+
+    saveAlertFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: ["sns:ListSubscriptionsByTopic"],
+        resources: [userAlertTopic.topicArn],
+      })
+    );
   }
 }
