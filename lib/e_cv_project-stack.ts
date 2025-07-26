@@ -167,22 +167,21 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // old way to create DynamoDB table
-    {
-      // // i8.2: Define DynamoDB table for User Alert Configs
-      // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
-      //   tableName: "UserAlertConfigs", // Optional: specify a table name
-      //   partitionKey: {
-      //     name: "userID",
-      //     type: dynamoDB.AttributeType.STRING,
-      //   },
-      //   sortKey: {
-      //     name: "alertID",
-      //     type: dynamoDB.AttributeType.STRING,
-      //   },
-      //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-      //   // removalPolicy: cdk.RemovalPolicy.RETAIN, // Retain the table when the stack is destroyed
-      // });
-    }
+
+    // // i8.2: Define DynamoDB table for User Alert Configs
+    // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+    //   tableName: "UserAlertConfigs", // Optional: specify a table name
+    //   partitionKey: {
+    //     name: "userID",
+    //     type: dynamoDB.AttributeType.STRING,
+    //   },
+    //   sortKey: {
+    //     name: "alertID",
+    //     type: dynamoDB.AttributeType.STRING,
+    //   },
+    //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
+    //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+    // });
 
     // new way to create DynamoDB with aws custom resource
     const dynamoDBTable_name = "UserAlertConfigs";
@@ -244,7 +243,7 @@ export class ECvProjectStack extends cdk.Stack {
       service: "dynamodb",
       resource: "table",
       resourceName: dynamoDBTable_name,
-      arnFormat: cdk.ArnFormat.COLON_RESOURCE_NAME,
+      // arnFormat: cdk.ArnFormat.SLASH_RESOURCE_NAME,
     });
 
     const alertConfigsTable = dynamoDB.Table.fromTableArn(
@@ -255,7 +254,7 @@ export class ECvProjectStack extends cdk.Stack {
 
     // i8.3 : Save Alert API and Lambda Function
     // new Lambda funtion to handle POST /alerts
-    const saveAlertFn = new lambda.Function(this, " SaveAlertFunction", {
+    const saveAlertFn = new lambda.Function(this, "SaveAlertFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
       handler: "saveAlert.handler", // point to export.handler in saveAlert.js
       code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
@@ -267,6 +266,7 @@ export class ECvProjectStack extends cdk.Stack {
 
     // Grant the Lambda function permissions to write to the DynamoDB table
     alertConfigsTable.grantWriteData(saveAlertFn); // grant write permissions to the lambda function
+    // alertConfigsTable.grantFullAccess(saveAlertFn); // grant full access to the lambda function
 
     // Create an HTTP API for saving alerts
     const api = new apigw.HttpApi(this, "AlertApi", {

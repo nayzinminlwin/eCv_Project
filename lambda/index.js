@@ -35,15 +35,12 @@ exports.handler = async (event) => {
     // optional : inspecting the incoming 'event'
     console.log("Event received : " + JSON.stringify(event));
 
-    const {
-      alertID,
-      userID,
-      email,
-      symbol,
-      condition,
-      upperBound,
-      lowerBound,
-    } = alertConfigs[0] || {};
+    // loop here
+    //
+    //
+
+    const { alertID, userID, email, symbol, condition, price, lowerBound } =
+      alertConfigs[0] || {};
 
     // i3
     // https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false
@@ -141,23 +138,47 @@ exports.handler = async (event) => {
       `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
     );
 
-    // i7.2 : Prepare SNS params
-    const snsParams = {
-      TopicArn: process.env.ALERT_TOPIC_ARN, // injected by the CDK Stack
-      Subject: `Crypto Alert for ${report[0].cryptoName}`,
-      Message: `Current Price: $${report[0].currentPrice}\nStatus Flag: ${report[0].statusFlag}\nTimestamp: ${report[0].timestamp}`,
-    };
+    // // i7.2 : Prepare SNS params
+    // const snsParams = {
+    //   TopicArn: process.env.ALERT_TOPIC_ARN, // injected by the CDK Stack
+    //   Subject: `Crypto Alert for ${report[0].cryptoName}`,
+    //   Message: `Current Price: $${report[0].currentPrice}\nStatus Flag: ${report[0].statusFlag}\nTimestamp: ${report[0].timestamp}`,
+    // };
 
+    // testing conditions
+    previousPrice = 90; // for testing purposes
+    coinData.current_price = 300; // for testing purposes
+    coinData.high_24h = 130; // for testing purposes
+    coinData.low_24h = 80; // for testing purposes
+    coinData.price_change_24h = 5; // for testing purposes
+
+    // i8.7: Evaluating the condition
     const trigger = conditionProcessing(
       condition,
-      0,
+      previousPrice,
       coinData.current_price,
-      upperBound,
+      price,
       lowerBound,
       coinData.high_24h,
       coinData.low_24h,
       coinData.price_change_24h
     );
+
+    // i7.3 : Publish to SNS if condition is met
+    if (trigger) {
+      const msg = `Alert for ${alertID} (${symbol}): ${trigger}\n`;
+      console.log("📢 Triggered condition: ", msg);
+
+      // await sns
+      //   .publish({
+      //     TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+      //     Subject: `Crypto Alert for ${coinData.id}`,
+      //     Message: msg,
+      //   })
+      //   .promise();
+    } else {
+      console.log("📢 No condition met, no alert sent.");
+    }
 
     // return success to see in the Lambda console
     return {
@@ -185,7 +206,7 @@ exports.handler = async (event) => {
     };
 
     // i7.1 : Publish to SNS
-    await sns.publish(params).promise();
+    // await sns.publish(params).promise();
     console.error("❌ SNS Notification sent for failure");
 
     // Re-throw the error to stop the pipeline
@@ -193,87 +214,89 @@ exports.handler = async (event) => {
   }
 };
 
-function snsPublish(message, symbol) {
-  sns.publish({
-    topicArn: process.env.ALERT_TOPIC_ARN, // injected by CDK
-    subject: `Crypto Alert for ${symbol}`,
-    message: message,
-  });
-}
-
+// i8.7: Condition processing function
+// This function checks the current price against the defined conditions and returns a message if the condition is met.
 function conditionProcessing(
   condition,
   previousPrice,
   currentPrice,
-  defPrice = upperBound,
-  lowerBound,
-  high24,
-  low24,
-  change24
+  defPrice,
+  lowerBound = 0,
+  high24 = 0,
+  low24 = 0,
+  change24 = 0
 ) {
-  let crossUp, crossDown;
+  console.log(
+    `Processing condition: ${condition}, Previous Price: ${previousPrice}, Current Price: ${currentPrice}, Defined Price: ${defPrice}, Lower Bound: ${lowerBound}, 24h High: ${high24}, 24h Low: ${low24}, 24h Change: ${change24}`
+  );
+
   switch (condition) {
     case "crossUp":
       if (previousPrice < defPrice && currentPrice >= defPrice)
-        return `Current price: ${currentPrice}$ crossed up the ${defPrice} threshold.`;
+        return `Current price: ${currentPrice}$ crossed up the $${defPrice} threshold. \n 
+      Previous Price : $${previousPrice} \n
+      Defined Price : $${defPrice} \n
+      Current Price : $${currentPrice} \n`;
+      break;
 
     case "crossDown":
       if (previousPrice > defPrice && currentPrice <= defPrice)
-        return `Current price: ${currentPrice}$ crossed down the ${defPrice} threshold.`;
+        return `Current price: ${currentPrice}$ crossed down the $${defPrice} threshold. \n
+      Previous Price : $${previousPrice} \n
+      Defined Price : $${defPrice} \n
+      Current Price : $${currentPrice} \n`;
+      break;
 
     case "cross":
-      if (crossUp || crossDown)
-        return `Current price: ${currentPrice}$ crossed the ${defPrice} threshold.`;
+      if (
+        (previousPrice < defPrice && currentPrice >= defPrice) ||
+        (previousPrice > defPrice && currentPrice <= defPrice)
+      )
+        return `Current price: ${currentPrice}$ crossed the $${defPrice} threshold. \n
+      Previous Price : $${previousPrice} \n
+      Defined Price : $${defPrice} \n
+      Current Price : $${currentPrice} \n`;
+      break;
 
     case "exCh":
-      const crossDownLowerBound = conditionProcessing(
-        "crossDown",
-        previousPrice,
-        currentPrice,
-        lowerBound,
-        0
-      );
-      const crossUpUpperBound = conditionProcessing(
-        "crossUp",
-        previousPrice,
-        currentPrice,
-        defPrice,
-        0
-      );
-      if (crossDownLowerBound || crossUpUpperBound)
-        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$.`;
+      if (
+        (previousPrice > lowerBound && currentPrice <= lowerBound) ||
+        (previousPrice < defPrice && currentPrice >= defPrice)
+      )
+        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+      Previous Price : $${previousPrice} \n
+      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Current Price : $${currentPrice} \n`;
+      break;
 
     case "entCh":
-      const crossDownUpperBound = conditionProcessing(
-        "crossDown",
-        previousPrice,
-        currentPrice,
-        defPrice,
-        0
-      );
-      const crossUpLowerBound = conditionProcessing(
-        "crossUp",
-        previousPrice,
-        currentPrice,
-        lowerBound,
-        0
-      );
-      if (crossDownUpperBound || crossUpLowerBound)
-        return `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$.`;
+      if (
+        (previousPrice < lowerBound && currentPrice >= lowerBound) ||
+        (previousPrice > defPrice && currentPrice <= defPrice)
+      )
+        return `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+      Previous Price : $${previousPrice} \n
+      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Current Price : $${currentPrice} \n`;
+      break;
 
     case "24_High":
-      if (defPrice > high24)
-        return `Defined price: ${defPrice}$ is above the 24-hour high of ${high24}$.\n Current price: ${currentPrice}$.`;
+      if (defPrice < high24)
+        return `24-hour high of ${high24}$ is exceeding the Defined price: ${defPrice}$.\n Current price: ${currentPrice}$.`;
+      break;
 
     case "24_Low":
-      if (defPrice < low24)
-        return `Defined price: ${defPrice}$ is below the 24-hour low of ${low24}$.\n Current price: ${currentPrice}$.`;
+      if (defPrice > low24)
+        return `24-hour low of ${low24}$ is below the Defined price: ${defPrice}$.\n Current price: ${currentPrice}$.`;
+      break;
 
     case "priceChange_24":
       if (defPrice > change24)
         return `Defined price: ${defPrice}$ is above the 24-hour price change of ${change24}$.\n Current price: ${currentPrice}$.`;
+      break;
 
     default:
-      throw new Error(`Unknown condition: ${condition}`);
+      return null;
+    // throw new Error(`Unknown condition: ${condition}`);
   }
 }
