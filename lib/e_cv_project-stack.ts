@@ -12,6 +12,11 @@ import * as s3deploy from "aws-cdk-lib/aws-s3-deployment";
 import * as dynamoDB from "aws-cdk-lib/aws-dynamodb";
 import * as apigw from "aws-cdk-lib/aws-apigatewayv2";
 import * as integrations from "aws-cdk-lib/aws-apigatewayv2-integrations";
+import {
+  AwsCustomResource,
+  PhysicalResourceId,
+  AwsCustomResourcePolicy,
+} from "aws-cdk-lib/custom-resources"; // custom resource for flexible SNS topic removal and recreation
 
 export class ECvProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -20,7 +25,7 @@ export class ECvProjectStack extends cdk.Stack {
     // The code that defines your stack goes here
 
     // initial example testing blocks
-    const testingBlocks = {
+    {
       // // example resource
       // const queue = new sqs.Queue(this, "ECvProjectQueue", {
       //   visibilityTimeout: cdk.Duration.seconds(300),
@@ -53,7 +58,7 @@ export class ECvProjectStack extends cdk.Stack {
       //   queueName: "MyQueue",
       //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
       // });
-    };
+    }
 
     const bucket = new Bucket(this, "ReportBucket", {
       bucketName: "report-bucket-for-real",
@@ -64,18 +69,58 @@ export class ECvProjectStack extends cdk.Stack {
       // Good practice for experiment data
     });
 
-    // i7: Create SNS topic for error alerts
-    const alertTopic = new sns.Topic(this, "ErrorAlertTopic", {
-      topicName: "ErrorAlertTopic",
-      displayName: "Pipeline Error Alerts",
+    // old way to create SNS topic
+    {
+      // // i7: Create SNS topic for error alerts
+      // const errorAlertTopic = new sns.Topic(this, "ErrorAlertTopic", {
+      //   topicName: "ErrorAlertTopic",
+      //   displayName: "Pipeline Error Alerts",
+      // });
+      // // i7: Subscribe an email address to the SNS topic
+      // const errorAlertSub = errorAlertTopic.addSubscription(
+      //   new subs.EmailSubscription("nayzinminlwin22@gmail.com")
+      // );
+      // // Retain the subscription when the stack is deleted
+      // errorAlertSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+      // // Remove the topic when the stack is destroyed
+      // (errorAlertTopic.node.defaultChild as sns.CfnTopic).applyRemovalPolicy(
+      //   cdk.RemovalPolicy.RETAIN
+      // );
+    }
+
+    // Edit: Flexible SNS topic removal and recreation
+    const eAlertTopic = "Error-Alert-Topic";
+
+    // Ensure the SNS topic exists, creating it if it doesn't
+    const ensureTopic = new AwsCustomResource(this, "EnsureTopic", {
+      onCreate: {
+        service: "SNS",
+        action: "createTopic",
+        parameters: {
+          Name: eAlertTopic,
+          displayName: "Pipeline Error Alerts",
+        },
+        // SNS topic ARN will be used as the physical resource ID
+        physicalResourceId: PhysicalResourceId.fromResponse("TopicArn"),
+      },
+      policy: AwsCustomResourcePolicy.fromSdkCalls({
+        resources: AwsCustomResourcePolicy.ANY_RESOURCE,
+      }),
     });
 
-    // i7: Subscribe an email address to the SNS topic
-    const alertSub = alertTopic.addSubscription(
+    // Get the topic ARN from the custom resource
+    const errorTopicArn = ensureTopic.getResponseField("TopicArn");
+    const errorAlertTopic = sns.Topic.fromTopicArn(
+      this,
+      "Error-Alert-Topic",
+      errorTopicArn
+    );
+
+    // Subscribe an email address to the SNS topic
+    const myMailSub = errorAlertTopic.addSubscription(
       new subs.EmailSubscription("nayzinminlwin22@gmail.com")
     );
-    // Retain the subscription when the stack is deleted
-    alertSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+    myMailSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // Creating a lambda function
     const fetcherFn = new lambda.Function(this, "FetcherFunction", {
@@ -85,13 +130,14 @@ export class ECvProjectStack extends cdk.Stack {
       environment: {
         // pass the bucket name into the function as an environment variable
         BUCKET_NAME: bucket.bucketName,
-        ERROR_ALERT_TOPIC_ARN: alertTopic.topicArn, // pass the SNS topic ARN into the function as an environment variable
+        // pass the SNS topic ARN into the function as an environment variable
+        ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
       },
       timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
     });
 
     // i7: grant publish permissions to the lambda function
-    alertTopic.grantPublish(fetcherFn);
+    errorAlertTopic.grantPublish(fetcherFn);
 
     // granting lambda function to put data into bucket
     bucket.grantPut(fetcherFn);
@@ -151,7 +197,7 @@ export class ECvProjectStack extends cdk.Stack {
     // Grant the Lambda function permissions to write to the DynamoDB table
     alertConfigsTable.grantWriteData(saveAlertFn); // grant write permissions to the lambda function
 
-    // Create an HTTP API
+    // Create an HTTP API for saving alerts
     const api = new apigw.HttpApi(this, "AlertApi", {
       apiName: "UserAlertApi",
       createDefaultStage: true, // auto-deploy to "$default" stage
@@ -238,7 +284,7 @@ export class ECvProjectStack extends cdk.Stack {
     userAlertTopic.grantPublish(fetcherFn);
 
     // retain SNS mail subscriptions after stack deletion
-    userAlertTopic.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+    // userAlertTopic.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // i8.6: Pass the table name into the function as an environment variable
     // pass the table name into the function as an environment variable
