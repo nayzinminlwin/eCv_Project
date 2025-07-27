@@ -40,3 +40,6 @@ jest.config.js
 
 # Misc
 *.d.ts
+
+test/*
+.npmignore
