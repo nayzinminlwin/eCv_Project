@@ -148,8 +148,8 @@ export class ECvProjectStack extends cdk.Stack {
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
       description: "5min rule to trigger the lambda function",
-      schedule: events.Schedule.rate(cdk.Duration.days(1)),
-      // schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
+      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
       targets: [new targets.LambdaFunction(fetcherFn)],
     });
 

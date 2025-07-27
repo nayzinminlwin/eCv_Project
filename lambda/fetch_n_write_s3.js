@@ -81,27 +81,29 @@ async function fetch_and_write_to_s3(symbol) {
   //i3.4 : Log the transformed report object
   console.log("Procesed report: ", JSON.stringify(report, null, 2));
 
-  // // Assemble a payload
-  // const payload = {
-  //   message: "This is test file from Lambda",
-  //   timeStamp: new Date().toISOString(),
-  // };
+  //   // Assemble a payload
+  //   {
+  //     const payload = {
+  //       message: "This is test file from Lambda",
+  //       timeStamp: new Date().toISOString(),
+  //     };
+  //   }
 
-  // Bulding a S3 key under 'reports/' so it is easy to find
-  const key = `reports/test-${Date.now()}.json`;
+  //   // Bulding a S3 key under 'reports/' so it is easy to find
+  //   const key = `reports/test-${Date.now()}.json`;
 
-  await s3
-    .putObject({
-      Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
-      Key: key,
-      Body: JSON.stringify(report, null, 2),
-      ContentType: "application/json",
-    })
-    .promise();
+  //   await s3
+  //     .putObject({
+  //       Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
+  //       Key: key,
+  //       Body: JSON.stringify(report, null, 2),
+  //       ContentType: "application/json",
+  //     })
+  //     .promise();
 
-  console.log(
-    `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
-  );
+  //   console.log(
+  //     `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
+  //   );
 
   // i8.7 : Prepare the most recent report and upload to S3
   console.log(`Calling key : ${lastFileKey}`);
