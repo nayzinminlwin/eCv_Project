@@ -7,6 +7,7 @@ const { resolve } = require("path");
 const s3 = new AWS.S3();
 const sns = new AWS.SNS();
 const db = new AWS.DynamoDB.DocumentClient();
+const { fetch_and_write_to_s3 } = require("./fetch_n_write_s3"); // Importing from fetch_n_write_s3.js
 
 exports.handler = async (event) => {
   // i6
@@ -33,160 +34,77 @@ exports.handler = async (event) => {
     }
 
     // optional : inspecting the incoming 'event'
-    console.log("Event received : " + JSON.stringify(event));
+    // console.log("Event received : " + JSON.stringify(event));
 
-    // loop here
-    //
-    //
+    // loop start here
+    for (const alerts of alertConfigs) {
+      const { alertID, userID, email, symbol, condition, price, lowerBound } =
+        alerts || {};
 
-    const { alertID, userID, email, symbol, condition, price, lowerBound } =
-      alertConfigs[0] || {};
+      // i8.7 : Prepare the most recent report file location
+      const lastFileKey = `reports/most_recent_report_4_${symbol}.json`;
 
-    // i3
-    // https://api.coingecko.com/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false
-    // Prepared REST endpoint for the data fetch
+      // i8.7 : Fetch previous price from S3 to compare with current price
+      console.log(`Calling key : ${lastFileKey}`);
+      let previousPrice;
+      await s3
+        .getObject({
+          Bucket: process.env.BUCKET_NAME,
+          Key: lastFileKey,
+        })
+        .promise()
+        .then((data) => {
+          previousPrice = JSON.parse(data.Body.toString())[0].currentPrice;
+          console.log("🤑 Previous Price: ", previousPrice);
+        })
+        .catch((err) => {
+          previousPrice = 0; // default to 0 if no previous price found
+          console.error("Error fetching previous price: ", err);
+        });
 
-    // supported currencies: https://api.coingecko.com/api/v3/simple/supported_vs_currencies
+      // i8.7 : Fetch the current price and substitute the recent file in S3
+      const coinData = await fetch_and_write_to_s3(symbol);
 
-    // i3.1 : Define test URL for data fetch
-    const myURL = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&symbol=${symbol}&order=market_cap_desc&per_page=1&page=1&sparkline=false`;
-
-    // Uncomment below to test with a broken URL
-    // // broken URL for error handling testing
-    // const myURL =
-    //   "https://api.coi/api/v3/coins/markets?vs_currency=myr&ids=bitcoin&order=market_cap_desc&per_page=1&page=1&sparkline=false";
-
-    //i3.2 : Fetch JSON from URL
-    const rawData = await new Promise((resolve, reject) => {
-      const req = https.get(
-        myURL,
-        {
-          // mimicking a valid user data fetch from chrome, avoiding 403 or bot denials.
-          headers: {
-            Accept: "application/json",
-            "User-Agent":
-              "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
-              "AppleWebKit/537.36 (KHTML, like Gecko) " +
-              "Chrome/114.0.0.0 Safari/537.36",
-          },
-        },
-        (res) => {
-          let body = "";
-
-          // Non-200 Response check
-          if (res.statusCode != 200) {
-            return reject(
-              new Error(
-                `Non-200 Response : ${res.statusCode} ${res.statusMessage}`
-              )
-            );
-          }
-
-          // collect data chunks
-          res.on("data", (chunk) => (body += chunk));
-
-          // On end, parse and resolve
-          res.on("end", () => resolve(body));
-
-          // Error catch
-          res.on("error", (err) => reject(err));
-        }
+      // i8.7: Evaluating the condition
+      const trigger = conditionProcessing(
+        condition,
+        previousPrice,
+        coinData.current_price,
+        price,
+        lowerBound,
+        coinData.high_24h,
+        coinData.low_24h,
+        coinData.price_change_24h
       );
-      req.on("error", (err) => reject(err));
-    });
 
-    // [{object}]
-    // Parse the JSON and get the first object from the array
-    const parsedData = JSON.parse(rawData);
-    // array got only one room [0] and it hold the object.
-    const coinData = parsedData[0] || {};
+      // i7.3 : Publish to SNS if condition is met
+      if (trigger) {
+        const msg = `Alert for ${alertID} (${symbol}): ${trigger}\n`;
+        console.log("\n📢 Triggered condition: ", msg);
 
-    // seeing the raw data
-    console.log("RawData response body : " + JSON.stringify(coinData));
+        const params = {
+          TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+          Subject: `Crypto Alert for ${coinData.id}/${coinData.symbol}`,
+          Message: msg,
+        };
 
-    //i3.3 : Transform into 'report' schema
-    // Example: pick just two specific fields from the raw JSON
-    const report = [coinData].map((item) => ({
-      timestamp: new Date().toISOString(),
-      cryptoName: coinData.name,
-      currentPrice: coinData.current_price,
-      statusFlag: coinData.price_change_24h <= -500,
-    }));
+        console.log("🅿️ Publishing params: ", params);
+        // sns publish
+        await sns.publish(params).promise();
+      } else {
+        console.log("🔕 No condition met, no alert sent.");
+      }
 
-    //i3.4 : Log the transformed report object
-    console.log("Procesed report: ", JSON.stringify(report, null, 2));
-
-    // // Assemble a payload
-    // const payload = {
-    //   message: "This is test file from Lambda",
-    //   timeStamp: new Date().toISOString(),
-    // };
-
-    // Bulding a S3 key under 'reports/' so it is easy to find
-    const key = `reports/test-${Date.now()}.json`;
-
-    await s3
-      .putObject({
-        Bucket: process.env.BUCKET_NAME, // injected by the CDK Stack
-        Key: key,
-        Body: JSON.stringify(report, null, 2),
-        ContentType: "application/json",
-      })
-      .promise();
-
-    console.log(
-      `✅ Uploaded test file to s3://${process.env.BUCKET_NAME}/${key}`
-    );
-
-    // // i7.2 : Prepare SNS params
-    // const snsParams = {
-    //   TopicArn: process.env.ALERT_TOPIC_ARN, // injected by the CDK Stack
-    //   Subject: `Crypto Alert for ${report[0].cryptoName}`,
-    //   Message: `Current Price: $${report[0].currentPrice}\nStatus Flag: ${report[0].statusFlag}\nTimestamp: ${report[0].timestamp}`,
-    // };
-
-    // testing conditions
-    previousPrice = 90; // for testing purposes
-    coinData.current_price = 300; // for testing purposes
-    coinData.high_24h = 130; // for testing purposes
-    coinData.low_24h = 80; // for testing purposes
-    coinData.price_change_24h = 5; // for testing purposes
-
-    // i8.7: Evaluating the condition
-    const trigger = conditionProcessing(
-      condition,
-      previousPrice,
-      coinData.current_price,
-      price,
-      lowerBound,
-      coinData.high_24h,
-      coinData.low_24h,
-      coinData.price_change_24h
-    );
-
-    // i7.3 : Publish to SNS if condition is met
-    if (trigger) {
-      const msg = `Alert for ${alertID} (${symbol}): ${trigger}\n`;
-      console.log("📢 Triggered condition: ", msg);
-
-      // await sns
-      //   .publish({
-      //     TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
-      //     Subject: `Crypto Alert for ${coinData.id}`,
-      //     Message: msg,
-      //   })
-      //   .promise();
-    } else {
-      console.log("📢 No condition met, no alert sent.");
-    }
-
-    // return success to see in the Lambda console
-    return {
-      statusCode: 200,
-      body: JSON.stringify(report),
-    };
-    // i6
+      // return success to see in the Lambda console
+      // return {
+      //   statusCode: 200,
+      //   body: "✅ Pipeline completed successfully.",
+      //   // body: JSON.stringify(report),
+      // };
+    } // end of for loop
+    console.log("✅ Pipeline completed successfully.");
   } catch (err) {
+    // i6.1 : Log the error
     console.error("❌ Pipeline failed : ", err);
 
     // checking if the environment variable is set
@@ -273,11 +191,16 @@ function conditionProcessing(
       if (
         (previousPrice < lowerBound && currentPrice >= lowerBound) ||
         (previousPrice > defPrice && currentPrice <= defPrice)
-      )
-        return `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+      ) {
+        let rtnMsg = `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
       Previous Price : $${previousPrice} \n
       Defined Prices : $${defPrice} - $${lowerBound} \n
       Current Price : $${currentPrice} \n`;
+        if (currentPrice > defPrice || currentPrice < lowerBound) {
+          rtnMsg += `\n⚠️ Warning: Current price already exited the defined channel bounds!`;
+        }
+        return rtnMsg;
+      }
       break;
 
     case "24_High":

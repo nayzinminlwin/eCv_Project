@@ -226,7 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       hideLoading();
       await showAlert(
-        `Trade submitted successfully for ${formData.userID}`,
+        `Alert submitted successfully for ${formData.userID}. ${
+          data.message || ""
+        }`,
         "Success"
       );
       form.reset();

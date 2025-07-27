@@ -4,18 +4,19 @@
 const AWS = require("aws-sdk");
 const db = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
+const { fetch_and_write_to_s3 } = require("./fetch_n_write_s3"); // Importing from fetch_n_write_s3.js
 
 exports.handler = async (event) => {
   try {
-    // i8.1 : Log incoming event
-    console.log(
-      "😴 Received event:",
-      JSON.stringify({
-        isBase64: event.isBase64Encoded,
-        headers: event.headers,
-        body: event.body,
-      })
-    );
+    // // i8.1 : Log incoming event
+    // console.log(
+    //   "😴 Received event:",
+    //   JSON.stringify({
+    //     isBase64: event.isBase64Encoded,
+    //     headers: event.headers,
+    //     body: event.body,
+    //   })
+    // );
 
     // 0. parse JSON body
     const { userID, email, symbol, condition, upperBound, lowerBound } =
@@ -70,6 +71,7 @@ exports.handler = async (event) => {
       })
       .promise();
 
+    let rtnMsg = "";
     // Check if email is already subscribed
     const emailExists = subs.Subscriptions.find(
       (sub) => sub.Endpoint === email && sub.Protocol === "email"
@@ -84,17 +86,22 @@ exports.handler = async (event) => {
           Endpoint: email, // user's email
         })
         .promise();
+      rtnMsg = `\nPlease confirm via your email inbox.`;
       console.log(
         `✅ Subscribed ${email} to alerts topic. Confirm via mail inbox.`
       );
     }
 
+    // i8.7 : Prepare the most recent data and upload to S3
+    // Make the initial fetch and save it to compare in the next fetch
+    // Fetch and write data to S3
+    await fetch_and_write_to_s3(symbol);
+
     // 4. Return success response
     return {
       statusCode: 201,
       body: JSON.stringify({
-        message:
-          "Alert saved successfully.\nPlease confirm your email subscription.",
+        message: rtnMsg,
         userID,
         alertID,
       }),

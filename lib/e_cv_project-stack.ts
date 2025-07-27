@@ -142,6 +142,8 @@ export class ECvProjectStack extends cdk.Stack {
 
     // granting lambda function to put data into bucket
     bucket.grantPut(fetcherFn);
+    // granting lambda function to read data from bucket
+    bucket.grantRead(fetcherFn);
 
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
@@ -260,6 +262,7 @@ export class ECvProjectStack extends cdk.Stack {
       code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
       environment: {
         TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
+        BUCKET_NAME: bucket.bucketName, // pass the bucket name into the function as an environment variable
       },
       timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
     });
@@ -267,6 +270,9 @@ export class ECvProjectStack extends cdk.Stack {
     // Grant the Lambda function permissions to write to the DynamoDB table
     alertConfigsTable.grantWriteData(saveAlertFn); // grant write permissions to the lambda function
     // alertConfigsTable.grantFullAccess(saveAlertFn); // grant full access to the lambda function
+
+    // granting savealert lambda function to put data into bucket for initial fetch
+    bucket.grantPut(saveAlertFn);
 
     // Create an HTTP API for saving alerts
     const api = new apigw.HttpApi(this, "AlertApi", {
