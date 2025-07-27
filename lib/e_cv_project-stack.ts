@@ -3,6 +3,7 @@ import { SqsDestination } from "aws-cdk-lib/aws-s3-notifications";
 import { Bucket, BlockPublicAccess } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
 import * as lambda from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import * as events from "aws-cdk-lib/aws-events";
 import * as targets from "aws-cdk-lib/aws-events-targets";
 import * as sns from "aws-cdk-lib/aws-sns";
@@ -123,18 +124,36 @@ export class ECvProjectStack extends cdk.Stack {
     );
     myMailSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
-    // Creating a lambda function
-    const fetcherFn = new lambda.Function(this, "FetcherFunction", {
+    // old way to create Lambda function
+    {
+      // // Creating a lambda function
+      // const fetcherFn0 = new lambda.Function(this, "FetcherFunction", {
+      //   runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
+      //   handler: "index.handler", // point to export.handler in index.js
+      //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      //   environment: {
+      //     // pass the bucket name into the function as an environment variable
+      //     BUCKET_NAME: bucket.bucketName,
+      //     // pass the SNS topic ARN into the function as an environment variable
+      //     ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
+      //   },
+      //   timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
+      // });
+    }
+
+    // New way to create Lambda function using NodejsFunction
+    // This is more efficient for bundling and transpiling TypeScript code
+    const fetcherFn = new NodejsFunction(this, "FetcherFunction", {
       runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
-      handler: "index.handler", // point to export.handler in index.js
-      code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      entry: "lambda/index.js", // point to export.handler in index.js
+      handler: "handler", // point to export.handler in index.js
+      bundling: {
+        // externalModules: ["aws-sdk"], // Exclude aws-sdk from the bundle
+      },
       environment: {
-        // pass the bucket name into the function as an environment variable
         BUCKET_NAME: bucket.bucketName,
-        // pass the SNS topic ARN into the function as an environment variable
         ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
       },
-      timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
     });
 
     // i7: grant publish permissions to the lambda function
@@ -254,12 +273,31 @@ export class ECvProjectStack extends cdk.Stack {
       alertConfigsTableArn
     );
 
-    // i8.3 : Save Alert API and Lambda Function
-    // new Lambda funtion to handle POST /alerts
-    const saveAlertFn = new lambda.Function(this, "SaveAlertFunction", {
+    // // i8.3 : Save Alert API and Lambda Function
+
+    // old way to create Lambda function for saving alerts
+    {
+      // // new Lambda funtion to handle POST /alerts
+      // const saveAlertFn0 = new lambda.Function(this, "SaveAlertFunction", {
+      //   runtime: lambda.Runtime.NODEJS_18_X,
+      //   handler: "saveAlert.handler", // point to export.handler in saveAlert.js
+      //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      //   environment: {
+      //     TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
+      //     BUCKET_NAME: bucket.bucketName, // pass the bucket name into the function as an environment variable
+      //   },
+      //   timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
+      // });
+    }
+
+    // New way to create Lambda function using NodejsFunction
+    const saveAlertFn = new NodejsFunction(this, "SaveAlertFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: "saveAlert.handler", // point to export.handler in saveAlert.js
-      code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      entry: "lambda/saveAlert.js", // point to export.handler in saveAlert.js
+      handler: "handler", // point to export.handler in saveAlert.js
+      bundling: {
+        // externalModules: ["aws-sdk"], // Exclude aws-sdk from the bundle
+      },
       environment: {
         TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
         BUCKET_NAME: bucket.bucketName, // pass the bucket name into the function as an environment variable
@@ -300,11 +338,14 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // i8.4 : Delete Alert API and Lambda Function
-    // new Lambda function to handle DELETE /alerts
-    const deleteAlertFn = new lambda.Function(this, "DeleteAlertFunction", {
+    // New way to create Lambda function using NodejsFunction
+    const deleteAlertFn = new NodejsFunction(this, "DeleteAlertFunction", {
       runtime: lambda.Runtime.NODEJS_18_X,
-      handler: "deleteAlert.handler", // point to export.handler in deleteAlert.js
-      code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+      entry: "lambda/deleteAlert.js", // point to export.handler in deleteAlert.js
+      handler: "handler", // point to export.handler in deleteAlert.js
+      bundling: {
+        // externalModules: ["aws-sdk"], // Exclude aws-sdk from the bundle
+      },
       environment: {
         TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
       },

@@ -124,7 +124,7 @@ exports.handler = async (event) => {
     };
 
     // i7.1 : Publish to SNS
-    // await sns.publish(params).promise();
+    await sns.publish(params).promise();
     console.error("❌ SNS Notification sent for failure");
 
     // Re-throw the error to stop the pipeline
