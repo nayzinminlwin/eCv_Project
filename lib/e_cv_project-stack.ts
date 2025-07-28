@@ -354,6 +354,7 @@ export class ECvProjectStack extends cdk.Stack {
 
     // Grant the Lambda function permissions to delete from the DynamoDB table
     alertConfigsTable.grantWriteData(deleteAlertFn); // grant write permissions to the lambda function
+    alertConfigsTable.grantReadData(deleteAlertFn); // grant read permissions to the lambda function
 
     api.addRoutes({
       path: "/alerts/delete/{userID}/{alertID}", // Define the path with userID and alertID as path parameters

@@ -33,6 +33,28 @@ exports.handler = async (event) => {
       };
     }
 
+    // check if alert exists
+    const alertExists = await db
+      .get({
+        TableName: process.env.TABLE_NAME, // injected by CDK
+        Key: {
+          userID,
+          alertID,
+        },
+      })
+      .promise();
+
+    // return 404 if alert does not exist
+    if (!alertExists.Item) {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          error: "Alert not found",
+          message: `No alert found for userID: ${userID} and alertID: ${alertID}.`,
+        }),
+      };
+    }
+
     // 2. Delete from DynamoDB
     await db
       .delete({

@@ -168,11 +168,15 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         if (!response.ok) {
-          throw new Error("Delete operation failed");
+          // throw the specific error message from the response
+          const errorData = await response.json();
+          throw new Error(
+            "Delete Operation failed!" + (errorData.message || "")
+          );
         }
 
         hideLoading();
-        await showAlert("Trade deleted successfully", "Success");
+        await showAlert(response.message, "Success");
         form.reset();
       } catch (error) {
         hideLoading();
