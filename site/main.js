@@ -167,16 +167,14 @@ document.addEventListener("DOMContentLoaded", () => {
           method: "DELETE",
         });
 
+        const res = await response.json();
         if (!response.ok) {
           // throw the specific error message from the response
-          const errorData = await response.json();
-          throw new Error(
-            "Delete Operation failed!" + (errorData.message || "")
-          );
+          throw new Error("Delete Operation failed!" + (res.message || ""));
         }
 
         hideLoading();
-        await showAlert(response.message, "Success");
+        await showAlert(res.message, "Success");
         form.reset();
       } catch (error) {
         hideLoading();

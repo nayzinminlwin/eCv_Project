@@ -5,15 +5,15 @@ const db = new AWS.DynamoDB.DocumentClient();
 
 exports.handler = async (event) => {
   try {
-    // i8.1 : Log incoming event
-    console.log(
-      "😴 Received event:",
-      JSON.stringify({
-        isBase64: event.isBase64Encoded,
-        headers: event.headers,
-        // body: event.body,
-      })
-    );
+    // // i8.1 : Log incoming event
+    // console.log(
+    //   "😴 Received event:",
+    //   JSON.stringify({
+    //     isBase64: event.isBase64Encoded,
+    //     headers: event.headers,
+    //     // body: event.body,
+    //   })
+    // );
 
     // catching userID from delete url
     const userID = event.pathParameters?.userID;
