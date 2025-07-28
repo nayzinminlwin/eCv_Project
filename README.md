@@ -38,7 +38,7 @@ Built with AWS CDK, Lambda, API Gateway, DynamoDB, EventBridge, SNS, and S3 stat
 
 5. **Access the app**
    - **Static site URL**: check your CDK output for `SiteBucketURL` or check it in AWS S3 Dashboard.
-   - It looks like `https://<YourSiteBucketName>.s3-website-<region>.amazonaws.com/`.
+   - It looks like `https://nzml-my-static-website-bucket.s3.<<region>>.amazonaws.com/index.html`.
 
 ---
 
