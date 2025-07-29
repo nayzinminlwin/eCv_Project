@@ -125,21 +125,21 @@ export class ECvProjectStack extends cdk.Stack {
     myMailSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // old way to create Lambda function
-    {
-      // // Creating a lambda function
-      // const fetcherFn0 = new lambda.Function(this, "FetcherFunction", {
-      //   runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
-      //   handler: "index.handler", // point to export.handler in index.js
-      //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
-      //   environment: {
-      //     // pass the bucket name into the function as an environment variable
-      //     BUCKET_NAME: bucket.bucketName,
-      //     // pass the SNS topic ARN into the function as an environment variable
-      //     ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
-      //   },
-      //   timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
-      // });
-    }
+    // {
+    //   // // Creating a lambda function
+    //   // const fetcherFn0 = new lambda.Function(this, "FetcherFunction", {
+    //   //   runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
+    //   //   handler: "index.handler", // point to export.handler in index.js
+    //   //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+    //   //   environment: {
+    //   //     // pass the bucket name into the function as an environment variable
+    //   //     BUCKET_NAME: bucket.bucketName,
+    //   //     // pass the SNS topic ARN into the function as an environment variable
+    //   //     ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
+    //   //   },
+    //   //   timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
+    //   // });
+    // }
 
     // New way to create Lambda function using NodejsFunction
     // This is more efficient for bundling and transpiling TypeScript code
@@ -167,8 +167,8 @@ export class ECvProjectStack extends cdk.Stack {
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
       description: "5min rule to trigger the lambda function",
-      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
-      schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
+      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      // schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
       targets: [new targets.LambdaFunction(fetcherFn)],
     });
 
@@ -188,21 +188,22 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // old way to create DynamoDB table
-
-    // // i8.2: Define DynamoDB table for User Alert Configs
-    // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
-    //   tableName: "UserAlertConfigs", // Optional: specify a table name
-    //   partitionKey: {
-    //     name: "userID",
-    //     type: dynamoDB.AttributeType.STRING,
-    //   },
-    //   sortKey: {
-    //     name: "alertID",
-    //     type: dynamoDB.AttributeType.STRING,
-    //   },
-    //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
-    // });
+    {
+      // // i8.2: Define DynamoDB table for User Alert Configs
+      // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+      //   tableName: "UserAlertConfigs", // Optional: specify a table name
+      //   partitionKey: {
+      //     name: "userID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   sortKey: {
+      //     name: "alertID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
+      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+      // });
+    }
 
     // new way to create DynamoDB with aws custom resource
     const dynamoDBTable_name = "UserAlertConfigs";
@@ -272,6 +273,9 @@ export class ECvProjectStack extends cdk.Stack {
       "AlertConfigsTable",
       alertConfigsTableArn
     );
+
+    // i12: New DynamoDB table for priceLogs
+    const priceLogsTableName = "PriceLogsTable";
 
     // // i8.3 : Save Alert API and Lambda Function
 

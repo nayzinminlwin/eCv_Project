@@ -36,10 +36,22 @@ exports.handler = async (event) => {
     // optional : inspecting the incoming 'event'
     // console.log("Event received : " + JSON.stringify(event));
 
+    let symbols = new Set();
+
     // loop start here
     for (const alerts of alertConfigs) {
-      const { alertID, userID, email, symbol, condition, price, lowerBound } =
-        alerts || {};
+      const {
+        alertID,
+        userID,
+        email,
+        symbol,
+        condition,
+        price,
+        upperBound,
+        lowerBound,
+      } = alerts || {};
+
+      symbols.add(symbol); // collect unique symbols
 
       // i8.7 : Prepare the most recent report file location
       const lastFileKey = `reports/most_recent_report_4_${symbol}.json`;
@@ -71,6 +83,7 @@ exports.handler = async (event) => {
         previousPrice,
         coinData.current_price,
         price,
+        upperBound,
         lowerBound,
         coinData.high_24h,
         coinData.low_24h,
@@ -139,13 +152,14 @@ function conditionProcessing(
   previousPrice,
   currentPrice,
   defPrice,
+  upperBound = 0,
   lowerBound = 0,
   high24 = 0,
   low24 = 0,
   change24 = 0
 ) {
   console.log(
-    `Processing condition: ${condition}, Previous Price: ${previousPrice}, Current Price: ${currentPrice}, Defined Price: ${defPrice}, Lower Bound: ${lowerBound}, 24h High: ${high24}, 24h Low: ${low24}, 24h Change: ${change24}`
+    `Processing condition: ${condition}, Previous Price: ${previousPrice}, Current Price: ${currentPrice}, Defined Price: ${defPrice}, Upper Bound: ${upperBound}, Lower Bound: ${lowerBound}, 24h High: ${high24}, 24h Low: ${low24}, 24h Change: ${change24}`
   );
 
   switch (condition) {
@@ -179,24 +193,24 @@ function conditionProcessing(
     case "exCh":
       if (
         (previousPrice > lowerBound && currentPrice <= lowerBound) ||
-        (previousPrice < defPrice && currentPrice >= defPrice)
+        (previousPrice < upperBound && currentPrice >= upperBound)
       )
-        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${upperBound}$ and lowerBound: ${lowerBound}$. \n
       Previous Price : $${previousPrice} \n
-      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Defined Prices : $${upperBound} - $${lowerBound} \n
       Current Price : $${currentPrice} \n`;
       break;
 
     case "entCh":
       if (
         (previousPrice < lowerBound && currentPrice >= lowerBound) ||
-        (previousPrice > defPrice && currentPrice <= defPrice)
+        (previousPrice > upperBound && currentPrice <= upperBound)
       ) {
-        let rtnMsg = `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+        let rtnMsg = `Current price: ${currentPrice}$ is entering channel between upperBound: ${upperBound}$ and lowerBound: ${lowerBound}$. \n
       Previous Price : $${previousPrice} \n
-      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Defined Prices : $${upperBound} - $${lowerBound} \n
       Current Price : $${currentPrice} \n`;
-        if (currentPrice > defPrice || currentPrice < lowerBound) {
+        if (currentPrice > upperBound || currentPrice < lowerBound) {
           rtnMsg += `\n⚠️ Warning: Current price already exited the defined channel bounds!`;
         }
         return rtnMsg;
