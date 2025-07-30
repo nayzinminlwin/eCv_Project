@@ -70,7 +70,7 @@ exports.handler = async (event) => {
       // i8.7: Evaluating the condition
       const trigger = conditionProcessing(
         condition,
-        previousPriceData.find((item) => item.symbol === symbol)?.lastPrice,
+        previousPriceData.get(symbol)?.lastPrice,
         assetsData[symbol]?.current_price,
         price,
         upperBound,
