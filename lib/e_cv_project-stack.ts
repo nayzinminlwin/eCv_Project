@@ -125,21 +125,21 @@ export class ECvProjectStack extends cdk.Stack {
     myMailSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // old way to create Lambda function
-    {
-      // // Creating a lambda function
-      // const fetcherFn0 = new lambda.Function(this, "FetcherFunction", {
-      //   runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
-      //   handler: "index.handler", // point to export.handler in index.js
-      //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
-      //   environment: {
-      //     // pass the bucket name into the function as an environment variable
-      //     BUCKET_NAME: bucket.bucketName,
-      //     // pass the SNS topic ARN into the function as an environment variable
-      //     ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
-      //   },
-      //   timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
-      // });
-    }
+    // {
+    //   // // Creating a lambda function
+    //   // const fetcherFn0 = new lambda.Function(this, "FetcherFunction", {
+    //   //   runtime: lambda.Runtime.NODEJS_18_X, // use nodeJS 18x runtime
+    //   //   handler: "index.handler", // point to export.handler in index.js
+    //   //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+    //   //   environment: {
+    //   //     // pass the bucket name into the function as an environment variable
+    //   //     BUCKET_NAME: bucket.bucketName,
+    //   //     // pass the SNS topic ARN into the function as an environment variable
+    //   //     ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
+    //   //   },
+    //   //   timeout: cdk.Duration.seconds(20), // set timeout to 20 seconds
+    //   // });
+    // }
 
     // New way to create Lambda function using NodejsFunction
     // This is more efficient for bundling and transpiling TypeScript code
@@ -151,7 +151,7 @@ export class ECvProjectStack extends cdk.Stack {
         // externalModules: ["aws-sdk"], // Exclude aws-sdk from the bundle
       },
       environment: {
-        BUCKET_NAME: bucket.bucketName,
+        // BUCKET_NAME: bucket.bucketName,
         ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
       },
     });
@@ -159,16 +159,16 @@ export class ECvProjectStack extends cdk.Stack {
     // i7: grant publish permissions to the lambda function
     errorAlertTopic.grantPublish(fetcherFn);
 
-    // granting lambda function to put data into bucket
-    bucket.grantPut(fetcherFn);
-    // granting lambda function to read data from bucket
-    bucket.grantRead(fetcherFn);
+    // // granting lambda function to put data into bucket
+    // bucket.grantPut(fetcherFn);
+    // // granting lambda function to read data from bucket
+    // bucket.grantRead(fetcherFn);
 
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
       description: "5min rule to trigger the lambda function",
-      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
-      schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
+      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      // schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
       targets: [new targets.LambdaFunction(fetcherFn)],
     });
 
@@ -188,21 +188,22 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // old way to create DynamoDB table
-
-    // // i8.2: Define DynamoDB table for User Alert Configs
-    // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
-    //   tableName: "UserAlertConfigs", // Optional: specify a table name
-    //   partitionKey: {
-    //     name: "userID",
-    //     type: dynamoDB.AttributeType.STRING,
-    //   },
-    //   sortKey: {
-    //     name: "alertID",
-    //     type: dynamoDB.AttributeType.STRING,
-    //   },
-    //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-    //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
-    // });
+    {
+      // // i8.2: Define DynamoDB table for User Alert Configs
+      // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+      //   tableName: "UserAlertConfigs", // Optional: specify a table name
+      //   partitionKey: {
+      //     name: "userID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   sortKey: {
+      //     name: "alertID",
+      //     type: dynamoDB.AttributeType.STRING,
+      //   },
+      //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
+      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+      // });
+    }
 
     // new way to create DynamoDB with aws custom resource
     const dynamoDBTable_name = "UserAlertConfigs";
@@ -273,6 +274,69 @@ export class ECvProjectStack extends cdk.Stack {
       alertConfigsTableArn
     );
 
+    // i12: New DynamoDB table for priceLogs
+    const priceLogsTableName = "PriceLogsTable";
+
+    const ensurePriceLogsTable = new AwsCustomResource(
+      this,
+      "EnsurePriceLogsTable",
+      {
+        onCreate: {
+          service: "DynamoDB",
+          action: "createTable",
+          parameters: {
+            TableName: priceLogsTableName,
+            AttributeDefinitions: [
+              {
+                AttributeName: "symbol",
+                AttributeType: "S",
+              },
+            ],
+            KeySchema: [
+              {
+                AttributeName: "symbol",
+                KeyType: "HASH",
+              },
+            ],
+            BillingMode: "PAY_PER_REQUEST", // Use on-demand billing mode
+          },
+          physicalResourceId: PhysicalResourceId.of("PriceLogsTableArn"),
+          ignoreErrorCodesMatching: "ResourceInUseException", // Ignore if the table already exists
+        },
+        onUpdate: {
+          service: "DynamoDB",
+          action: "describeTable",
+          parameters: {
+            TableName: priceLogsTableName,
+          },
+          physicalResourceId: PhysicalResourceId.of("PriceLogsTableArn"),
+          ignoreErrorCodesMatching: "ResourceNotFoundException", // Ignore if the table does not exist
+        },
+        policy: AwsCustomResourcePolicy.fromSdkCalls({
+          resources: AwsCustomResourcePolicy.ANY_RESOURCE,
+        }),
+      }
+    );
+
+    // Get the table arn from the custom resource
+    const priceLogsTableArn = this.formatArn({
+      service: "dynamodb",
+      resource: "table",
+      resourceName: priceLogsTableName,
+    });
+
+    const priceLogsTable = dynamoDB.Table.fromTableArn(
+      this,
+      "PriceLogsTable",
+      priceLogsTableArn
+    );
+
+    // i12 : add environment variables to the fetcher lambda function
+    fetcherFn.addEnvironment("PRICE_TABLE_NAME", priceLogsTable.tableName);
+
+    // i12 : grant read/write permissions to the fetcher lambda function
+    priceLogsTable.grantReadWriteData(fetcherFn);
+
     // // i8.3 : Save Alert API and Lambda Function
 
     // old way to create Lambda function for saving alerts
@@ -311,6 +375,12 @@ export class ECvProjectStack extends cdk.Stack {
 
     // granting savealert lambda function to put data into bucket for initial fetch
     bucket.grantPut(saveAlertFn);
+
+    // i12 : add environment variables to the saveAlert lambda function
+    saveAlertFn.addEnvironment("PRICE_TABLE_NAME", priceLogsTable.tableName);
+
+    // i12: granting savealert lambda function to read data from bucket
+    priceLogsTable.grantReadWriteData(saveAlertFn); // grant read/write permissions to the saveAlert lambda function
 
     // Create an HTTP API for saving alerts
     const api = new apigw.HttpApi(this, "AlertApi", {

@@ -1,13 +1,8 @@
 // import aws sdk and http modules
-const { rejects } = require("assert");
 const AWS = require("aws-sdk");
-const { log, timeStamp } = require("console");
-const https = require("https");
-const { resolve } = require("path");
-const s3 = new AWS.S3();
 const sns = new AWS.SNS();
 const db = new AWS.DynamoDB.DocumentClient();
-const { fetch_and_write_to_s3 } = require("./fetch_n_write_s3"); // Importing from fetch_n_write_s3.js
+const { writePrice_to_DynamoDB, fetch_AssetsData } = require("./fetch_n_write"); // Importing from fetch_n_write.js
 
 exports.handler = async (event) => {
   // i6
@@ -33,48 +28,56 @@ exports.handler = async (event) => {
       throw err;
     }
 
+    //i12 : Fetch all previous price from DynamoDB
+    let previousPriceData;
+    try {
+      const result = await db
+        .scan({
+          TableName: process.env.PRICE_TABLE_NAME, // injected by CDK
+        })
+        .promise();
+      previousPriceData = result.Items || [];
+      console.log(
+        `Loaded ${previousPriceData.length} Price data : `,
+        JSON.stringify(previousPriceData, null, 2)
+      );
+    } catch (err) {
+      console.error("❌ Failed to load alert configurations: ", err);
+      throw err;
+    }
+
     // optional : inspecting the incoming 'event'
     // console.log("Event received : " + JSON.stringify(event));
 
-    // loop start here
+    let symbols = new Set();
+
+    //i12 : put all symbols from alertConfigs into a Set
     for (const alerts of alertConfigs) {
-      const { alertID, userID, email, symbol, condition, price, lowerBound } =
+      const { symbol } = alerts || {};
+      if (symbol) {
+        symbols.add(symbol);
+      }
+    }
+
+    // i12 : Fetch the current price for each symbol
+    const assetsData = await fetch_AssetsData(symbols);
+
+    // Comparison for each alert configuration
+    for (const alerts of alertConfigs) {
+      const { alertID, symbol, condition, price, upperBound, lowerBound } =
         alerts || {};
-
-      // i8.7 : Prepare the most recent report file location
-      const lastFileKey = `reports/most_recent_report_4_${symbol}.json`;
-
-      // i8.7 : Fetch previous price from S3 to compare with current price
-      console.log(`Calling key : ${lastFileKey}`);
-      let previousPrice;
-      await s3
-        .getObject({
-          Bucket: process.env.BUCKET_NAME,
-          Key: lastFileKey,
-        })
-        .promise()
-        .then((data) => {
-          previousPrice = JSON.parse(data.Body.toString())[0].currentPrice;
-          console.log("🤑 Previous Price: ", previousPrice);
-        })
-        .catch((err) => {
-          previousPrice = 0; // default to 0 if no previous price found
-          console.error("Error fetching previous price: ", err);
-        });
-
-      // i8.7 : Fetch the current price and substitute the recent file in S3
-      const coinData = await fetch_and_write_to_s3(symbol);
 
       // i8.7: Evaluating the condition
       const trigger = conditionProcessing(
         condition,
-        previousPrice,
-        coinData.current_price,
+        previousPriceData.get(symbol)?.lastPrice,
+        assetsData[symbol]?.current_price,
         price,
+        upperBound,
         lowerBound,
-        coinData.high_24h,
-        coinData.low_24h,
-        coinData.price_change_24h
+        assetsData[symbol]?.high_24h,
+        assetsData[symbol]?.low_24h,
+        assetsData[symbol]?.price_change_24h
       );
 
       // i7.3 : Publish to SNS if condition is met
@@ -84,25 +87,23 @@ exports.handler = async (event) => {
 
         const params = {
           TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
-          Subject: `Crypto Alert for ${coinData.id}/${coinData.symbol}`,
+          Subject: `Crypto Alert for ${assetsData[symbol]?.id}/${symbol}`,
           Message: msg,
         };
 
-        console.log("🅿️ Publishing params: ", params);
+        console.log("🔔 Publishing params: ", params);
         // sns publish
         await sns.publish(params).promise();
       } else {
         console.log("🔕 No condition met, no alert sent.");
       }
+    }
 
-      // return success to see in the Lambda console
-      // return {
-      //   statusCode: 200,
-      //   body: "✅ Pipeline completed successfully.",
-      //   // body: JSON.stringify(report),
-      // };
-    } // end of for loop
-    console.log("✅ Pipeline completed successfully.");
+    // write new price data to DynamoDB
+    await writePrice_to_DynamoDB(assetsData);
+
+    // return success to see in the Lambda console
+    console.log("✅ Pipeline completed successfully via DynamoDB.");
   } catch (err) {
     // i6.1 : Log the error
     console.error("❌ Pipeline failed : ", err);
@@ -139,13 +140,14 @@ function conditionProcessing(
   previousPrice,
   currentPrice,
   defPrice,
+  upperBound = 0,
   lowerBound = 0,
   high24 = 0,
   low24 = 0,
   change24 = 0
 ) {
   console.log(
-    `Processing condition: ${condition}, Previous Price: ${previousPrice}, Current Price: ${currentPrice}, Defined Price: ${defPrice}, Lower Bound: ${lowerBound}, 24h High: ${high24}, 24h Low: ${low24}, 24h Change: ${change24}`
+    `Processing condition: ${condition}, Previous Price: ${previousPrice}, Current Price: ${currentPrice}, Defined Price: ${defPrice}, Upper Bound: ${upperBound}, Lower Bound: ${lowerBound}, 24h High: ${high24}, 24h Low: ${low24}, 24h Change: ${change24}`
   );
 
   switch (condition) {
@@ -179,24 +181,24 @@ function conditionProcessing(
     case "exCh":
       if (
         (previousPrice > lowerBound && currentPrice <= lowerBound) ||
-        (previousPrice < defPrice && currentPrice >= defPrice)
+        (previousPrice < upperBound && currentPrice >= upperBound)
       )
-        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+        return `Current price: ${currentPrice}$ is exiting channel from upperBound: ${upperBound}$ and lowerBound: ${lowerBound}$. \n
       Previous Price : $${previousPrice} \n
-      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Defined Prices : $${upperBound} - $${lowerBound} \n
       Current Price : $${currentPrice} \n`;
       break;
 
     case "entCh":
       if (
         (previousPrice < lowerBound && currentPrice >= lowerBound) ||
-        (previousPrice > defPrice && currentPrice <= defPrice)
+        (previousPrice > upperBound && currentPrice <= upperBound)
       ) {
-        let rtnMsg = `Current price: ${currentPrice}$ is entering channel between upperBound: ${defPrice}$ and lowerBound: ${lowerBound}$. \n
+        let rtnMsg = `Current price: ${currentPrice}$ is entering channel between upperBound: ${upperBound}$ and lowerBound: ${lowerBound}$. \n
       Previous Price : $${previousPrice} \n
-      Defined Prices : $${defPrice} - $${lowerBound} \n
+      Defined Prices : $${upperBound} - $${lowerBound} \n
       Current Price : $${currentPrice} \n`;
-        if (currentPrice > defPrice || currentPrice < lowerBound) {
+        if (currentPrice > upperBound || currentPrice < lowerBound) {
           rtnMsg += `\n⚠️ Warning: Current price already exited the defined channel bounds!`;
         }
         return rtnMsg;

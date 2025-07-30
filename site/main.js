@@ -205,8 +205,10 @@ document.addEventListener("DOMContentLoaded", () => {
       formData.lowerBound = parseFloat(
         document.getElementById("lowerBound").value
       );
+      formData.price = 0.0; // Default price for range conditions
     } else {
-      formData.upperBound = parseFloat(document.getElementById("price").value);
+      formData.price = parseFloat(document.getElementById("price").value);
+      formData.upperBound = 0.0; // Default upper bound for price conditions
       formData.lowerBound = 0.0; // Default lower bound for price conditions
     }
 
