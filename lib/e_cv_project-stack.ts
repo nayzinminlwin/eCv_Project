@@ -151,7 +151,7 @@ export class ECvProjectStack extends cdk.Stack {
         // externalModules: ["aws-sdk"], // Exclude aws-sdk from the bundle
       },
       environment: {
-        BUCKET_NAME: bucket.bucketName,
+        // BUCKET_NAME: bucket.bucketName,
         ERROR_ALERT_TOPIC_ARN: errorAlertTopic.topicArn,
       },
     });
@@ -159,10 +159,10 @@ export class ECvProjectStack extends cdk.Stack {
     // i7: grant publish permissions to the lambda function
     errorAlertTopic.grantPublish(fetcherFn);
 
-    // granting lambda function to put data into bucket
-    bucket.grantPut(fetcherFn);
-    // granting lambda function to read data from bucket
-    bucket.grantRead(fetcherFn);
+    // // granting lambda function to put data into bucket
+    // bucket.grantPut(fetcherFn);
+    // // granting lambda function to read data from bucket
+    // bucket.grantRead(fetcherFn);
 
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
