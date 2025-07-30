@@ -1,7 +1,6 @@
 // import aws sdk and http modules
 const AWS = require("aws-sdk");
 const https = require("https");
-const { resolve } = require("path");
 
 // i12 : Fetch the assets in burst to write to DynamoDB
 async function fetch_AssetsData(symbols) {
@@ -79,7 +78,7 @@ async function fetch_AssetsData(symbols) {
 async function writePrice_to_DynamoDB(assetsData) {
   const db = new AWS.DynamoDB.DocumentClient();
   for (const key in assetsData) {
-    if (!assetsData.hasOwnProperty(key)) continue; // skip if not a direct property
+    if (!Object.prototype.hasOwnProperty.call(assetsData, key)) continue; // skip if not a direct property
 
     console.log(
       `✍️ Writing ${key} : ${JSON.stringify(assetsData[key])} to DynamoDB...`

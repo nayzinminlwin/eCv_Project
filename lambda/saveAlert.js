@@ -4,7 +4,7 @@
 const AWS = require("aws-sdk");
 const db = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
-const { fetch_AssetsData, writePrice_to_DynamoDB } = require("./fetch_n_write"); // Importing from fetch_n_write_s3.js
+const { fetch_AssetsData, writePrice_to_DynamoDB } = require("./fetch_n_write"); // Importing from fetch_n_write.js
 
 exports.handler = async (event) => {
   try {
