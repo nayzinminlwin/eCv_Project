@@ -277,6 +277,66 @@ export class ECvProjectStack extends cdk.Stack {
     // i12: New DynamoDB table for priceLogs
     const priceLogsTableName = "PriceLogsTable";
 
+    const ensurePriceLogsTable = new AwsCustomResource(
+      this,
+      "EnsurePriceLogsTable",
+      {
+        onCreate: {
+          service: "DynamoDB",
+          action: "createTable",
+          parameters: {
+            TableName: priceLogsTableName,
+            AttributeDefinitions: [
+              {
+                AttributeName: "symbol",
+                AttributeType: "S",
+              },
+            ],
+            KeySchema: [
+              {
+                AttributeName: "symbol",
+                KeyType: "HASH",
+              },
+            ],
+            BillingMode: "PAY_PER_REQUEST", // Use on-demand billing mode
+          },
+          physicalResourceId: PhysicalResourceId.of("PriceLogsTableArn"),
+          ignoreErrorCodesMatching: "ResourceInUseException", // Ignore if the table already exists
+        },
+        onUpdate: {
+          service: "DynamoDB",
+          action: "describeTable",
+          parameters: {
+            TableName: priceLogsTableName,
+          },
+          physicalResourceId: PhysicalResourceId.of("PriceLogsTableArn"),
+          ignoreErrorCodesMatching: "ResourceNotFoundException", // Ignore if the table does not exist
+        },
+        policy: AwsCustomResourcePolicy.fromSdkCalls({
+          resources: AwsCustomResourcePolicy.ANY_RESOURCE,
+        }),
+      }
+    );
+
+    // Get the table arn from the custom resource
+    const priceLogsTableArn = this.formatArn({
+      service: "dynamodb",
+      resource: "table",
+      resourceName: priceLogsTableName,
+    });
+
+    const priceLogsTable = dynamoDB.Table.fromTableArn(
+      this,
+      "PriceLogsTable",
+      priceLogsTableArn
+    );
+
+    // i12 : add environment variables to the fetcher lambda function
+    fetcherFn.addEnvironment("PRICE_TABLE_NAME", priceLogsTable.tableName);
+
+    // i12 : grant read/write permissions to the fetcher lambda function
+    priceLogsTable.grantReadWriteData(fetcherFn);
+
     // // i8.3 : Save Alert API and Lambda Function
 
     // old way to create Lambda function for saving alerts
@@ -315,6 +375,12 @@ export class ECvProjectStack extends cdk.Stack {
 
     // granting savealert lambda function to put data into bucket for initial fetch
     bucket.grantPut(saveAlertFn);
+
+    // i12 : add environment variables to the saveAlert lambda function
+    saveAlertFn.addEnvironment("PRICE_TABLE_NAME", priceLogsTable.tableName);
+
+    // i12: granting savealert lambda function to read data from bucket
+    priceLogsTable.grantReadWriteData(saveAlertFn); // grant read/write permissions to the saveAlert lambda function
 
     // Create an HTTP API for saving alerts
     const api = new apigw.HttpApi(this, "AlertApi", {

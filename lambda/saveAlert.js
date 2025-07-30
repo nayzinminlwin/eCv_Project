@@ -4,7 +4,7 @@
 const AWS = require("aws-sdk");
 const db = new AWS.DynamoDB.DocumentClient();
 const sns = new AWS.SNS();
-const { fetch_and_write_to_s3 } = require("./fetch_n_write_s3"); // Importing from fetch_n_write_s3.js
+const { fetch_AssetsData, writePrice_to_DynamoDB } = require("./fetch_n_write"); // Importing from fetch_n_write_s3.js
 
 exports.handler = async (event) => {
   try {
@@ -95,10 +95,18 @@ exports.handler = async (event) => {
       );
     }
 
-    // i8.7 : Prepare the most recent data and upload to S3
-    // Make the initial fetch and save it to compare in the next fetch
-    // Fetch and write data to S3
-    await fetch_and_write_to_s3(symbol);
+    // // i8.7 : Prepare the most recent data and upload to S3
+    // // Make the initial fetch and save it to compare in the next fetch
+    // // Fetch and write data to S3
+    // await fetch_and_write_to_s3(symbol);
+
+    // s3 fetch and write architecture changed to i12 Dynamo fetch and write
+
+    // i12: Fetch the assets data and write to DynamoDB
+    // Collect unique symbols to fetch data in burst
+    const symbols = new Set([symbol]); // Collect unique symbols
+    const assetsData = await fetch_AssetsData(symbols); // Fetch assets data
+    await writePrice_to_DynamoDB(assetsData); // Write fetched data to DynamoDB
 
     // 4. Return success response
     return {
