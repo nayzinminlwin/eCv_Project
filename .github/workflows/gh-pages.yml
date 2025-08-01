@@ -2,7 +2,7 @@ name: Deploy site to GitHub Pages via gh-pages branch
 
 on:
   push:
-    branches: [main] # or your default branch
+    branches: [master]
   workflow_dispatch:
 
 jobs:
