@@ -6,9 +6,9 @@ name: Deploy static site to GitHub Pages
 on:
   # Triggers the workflow on push or pull request events but only for the "master" branch
   push:
-    branches: [ "master" ]
+    branches: ["master"]
   pull_request:
-    branches: [ "master" ]
+    branches: ["master"]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
 
     permissions:
-      pages: write   # allow publishing
+      pages: write # allow publishing
       id-token: write
 
     steps:
@@ -36,8 +36,11 @@ jobs:
           cp -R site/* output/
 
       # 3. Upload `output/` as the artifact for Pages
+      # - name: Upload artifact for GitHub Pages
+      #   uses: actions/upload-pages-artifact@v1
       - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v2
+
         with:
           path: output
 
@@ -51,5 +54,7 @@ jobs:
 
     steps:
       # 4. Deploy the artifact to GitHub Pages
+      # - name: Deploy to GitHub Pages
+      #   uses: actions/deploy-pages@v1
       - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+        uses: actions/deploy-pages@v3
