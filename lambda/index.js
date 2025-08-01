@@ -28,6 +28,18 @@ exports.handler = async (event) => {
       throw err;
     }
 
+    // if alertConfigs is empty, return a message
+    if (alertConfigs.length === 0) {
+      const msg = "😵 No alert configurations found.";
+      console.log(msg);
+      return {
+        statusCode: 200,
+        body: JSON.stringify({
+          message: msg,
+        }),
+      };
+    }
+
     //i12 : Fetch all previous price from DynamoDB
     let previousPriceData;
     try {

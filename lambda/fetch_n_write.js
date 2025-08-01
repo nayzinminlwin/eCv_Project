@@ -5,6 +5,12 @@ const https = require("https");
 // i12 : Fetch the assets in burst to write to DynamoDB
 async function fetch_AssetsData(symbols) {
   symbols = [...symbols].join("%2C"); // join symbols with comma for URL
+
+  // if symbols is empty, return an error
+  if (!symbols) {
+    throw new Error("No symbols provided for fetching assets data.");
+  }
+
   let myURL = `https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&symbols=${symbols}`;
 
   // Uncomment below to test with a broken URL
