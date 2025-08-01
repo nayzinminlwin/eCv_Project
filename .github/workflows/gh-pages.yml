@@ -1,0 +1,28 @@
+name: Deploy site to GitHub Pages via gh-pages branch
+
+on:
+  push:
+    branches: [main] # or your default branch
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Check out the repo
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # 2. (Optional) Build step if you have one
+      - name: Build site
+        run: |
+          # e.g. npm ci && npm run build
+          echo "No build needed—static files only"
+
+      # 3. Deploy to gh-pages branch
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./site # path to your static site folder
