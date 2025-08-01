@@ -167,8 +167,8 @@ export class ECvProjectStack extends cdk.Stack {
     // schedule the lambda function to run every 5 minutes
     new events.Rule(this, "FiveMinuteRule", {
       description: "5min rule to trigger the lambda function",
-      schedule: events.Schedule.rate(cdk.Duration.days(1)),
-      // schedule: events.Schedule.rate(cdk.Duration.minutes(30)),
+      // schedule: events.Schedule.rate(cdk.Duration.days(1)),
+      schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
       targets: [new targets.LambdaFunction(fetcherFn)],
     });
 
@@ -436,9 +436,9 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // Output the API endpoint URL
-    new cdk.CfnOutput(this, "ApiEndpoint", {
-      value: api.url ?? "No URL available",
+    new cdk.CfnOutput(this, "Alert_API_URL", {
       description: "The endpoint URL of the User Alert API",
+      value: api.url ?? "No URL available",
       exportName: "UserAlertApiEndpoint", // Optional: export the URL for use in other stacks
     });
 
@@ -521,5 +521,14 @@ export class ECvProjectStack extends cdk.Stack {
         resources: [userAlertTopic.topicArn],
       })
     );
+
+    // sitebucket url output
+    new cdk.CfnOutput(this, "SiteBucket_URL", {
+      description: "The URL of the static website bucket",
+      value: siteBucket.bucketWebsiteUrl,
+      // call distribution domain name for static website
+      // value: distribution.distributionDomainName,
+      exportName: "SiteBucketURL", // Optional: export the URL for use in other stacks
+    });
   }
 }
