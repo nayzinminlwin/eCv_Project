@@ -22,8 +22,18 @@
     "strictPropertyInitialization": false,
     "typeRoots": [
       "./node_modules/@types"
-    ]
+    ],
+    "allowJs": true,
+    "checkJs": false,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "outDir": "./dist"
   },
+  "include": [
+    "src/**/*.ts",
+    "lambda/**/*.ts",
+    "test/**/*.ts"
+  ],
   "exclude": [
     "node_modules",
     "cdk.out"

@@ -43,3 +43,7 @@ jest.config.js
 
 test/*
 .npmignore
+
+# test files
+*.test.ts
+*.spec.ts
