@@ -34,6 +34,36 @@ jobs:
 
       - name: Configure AWS CLI (fallback)
         run: |
+          # Create AWS credentials directory
+          mkdir -p ~/.aws
+
+          # Create credentials file
+          cat > ~/.aws/credentials << EOF
+          [default]
+          aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+          [cdk]
+          aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          EOF
+
+          # Create config file
+          cat > ~/.aws/config << EOF
+          [default]
+          region = ${{ secrets.AWS_REGION }}
+          output = json
+
+          [profile cdk]
+          region = ${{ secrets.AWS_REGION }}
+          output = json
+          EOF
+
+          # Set proper permissions
+          chmod 600 ~/.aws/credentials
+          chmod 600 ~/.aws/config
+
+          # Also use aws configure as backup
           aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws configure set default.region ${{ secrets.AWS_REGION }}
@@ -59,11 +89,13 @@ jobs:
         id: cdk_deploy
         run: |
           echo "Deploying CDK stack..."
-          export CDK_DEFAULT_ACCOUNT=${AWS_ACCOUNT_ID}
-          export CDK_DEFAULT_REGION=${AWS_REGION}
+          echo "Testing CDK with credentials..."
+          npx cdk list --profile cdk
+          echo "Deploying with profile..."
           npx cdk deploy ECvProjectStack \
             --outputs-file cdk-outputs.json \
-            --require-approval never
+            --require-approval never \
+            --profile cdk
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
