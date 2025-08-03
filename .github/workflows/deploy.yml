@@ -115,8 +115,40 @@ jobs:
 
       - name: Update Live URL file
         run: |
-          echo "[Live Demo]($CLOUDFRONT_URL)" > LIVE_URL.md
+          echo "CloudFront URL: ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
+          echo "[Live Demo](${{ steps.extract.outputs.CLOUDFRONT_URL }})" > LIVE_URL.md
+          echo "Created LIVE_URL.md with content:"
+          cat LIVE_URL.md
+
+          # Create a simple HTML redirect page for GitHub Pages
+          mkdir -p gh-pages
+          cat > gh-pages/index.html << EOF
+          <!DOCTYPE html>
+          <html>
+          <head>
+              <title>Redirecting to Live Demo</title>
+              <meta http-equiv="refresh" content="0; url=${{ steps.extract.outputs.CLOUDFRONT_URL }}">
+              <script>
+                  window.location.href = "${{ steps.extract.outputs.CLOUDFRONT_URL }}";
+              </script>
+          </head>
+          <body>
+              <h1>Redirecting to Live Demo...</h1>
+              <p>If you are not redirected automatically, <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}">click here</a>.</p>
+              <p><strong>Live URL:</strong> <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}">${{ steps.extract.outputs.CLOUDFRONT_URL }}</a></p>
+          </body>
+          </html>
+          EOF
         # (Optionally) commit it back so your README can `include` or link it
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./gh-pages
+          publish_branch: gh-pages
+          enable_jekyll: false
+          allow_empty_commit: false
 
       - name: Commit and push LIVE_URL.md
         run: |
@@ -128,7 +160,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: update live URL to $CLOUDFRONT_URL"
+            git commit -m "chore: update live URL to ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
             git push
           fi
         env:
