@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import { Stack } from "aws-cdk-lib";
 import { SqsDestination } from "aws-cdk-lib/aws-s3-notifications";
 import { Bucket, BlockPublicAccess } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
@@ -28,41 +29,41 @@ export class ECvProjectStack extends cdk.Stack {
 
     // The code that defines your stack goes here
 
-    // initial example testing blocks
-    {
-      // // example resource
-      // const queue = new sqs.Queue(this, "ECvProjectQueue", {
-      //   visibilityTimeout: cdk.Duration.seconds(300),
-      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
-      //   queueName: "ECvProjectQueue",
-      // });
-      //
-      // // Creating a level1 bucket which i need to identify all by manual.
-      // const level1S3Bucket = new CfnBucket(this, "MyFirstLevel1ConstructBucket", {
-      //   versioningConfiguration: {
-      //     status: "Enabled",
-      //   },
-      // });
-      // // Set removal policy and auto-delete objects for the level1 bucket
-      // level1S3Bucket.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
-      // (level1S3Bucket as any).autoDeleteObjects = true; // Note: autoDeleteObjects is not a property of CfnBucketProps, but can be set like this if needed for experimentation
-      //
-      // // level2 bucket (the sweet spot) where everything necessary is auto.
-      // const level2S3Bucket = new Bucket(this, "MyFirstLevel2ConstructBucket", {
-      //   bucketName: "myfirstlevel2bucketirl",
-      //   versioned: true,
-      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // to delete all inside the bucket after cdk destroy
-      //   autoDeleteObjects: true, // Good practice for experiment data
-      // });
-      //
-      // // Once the s3 object is created, add the event notification to queue
-      // level2S3Bucket.addEventNotification(EventType.OBJECT_CREATED,new SqsDestination(myQueue));
-      // // Creating a sqsQueue
-      // const myQueue = new Queue(this, "MyQueue", {
-      //   queueName: "MyQueue",
-      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
-      // });
-    }
+    // // initial example testing blocks
+    // {
+    //   // // example resource
+    //   // const queue = new sqs.Queue(this, "ECvProjectQueue", {
+    //   //   visibilityTimeout: cdk.Duration.seconds(300),
+    //   //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
+    //   //   queueName: "ECvProjectQueue",
+    //   // });
+    //   //
+    //   // // Creating a level1 bucket which i need to identify all by manual.
+    //   // const level1S3Bucket = new CfnBucket(this, "MyFirstLevel1ConstructBucket", {
+    //   //   versioningConfiguration: {
+    //   //     status: "Enabled",
+    //   //   },
+    //   // });
+    //   // // Set removal policy and auto-delete objects for the level1 bucket
+    //   // level1S3Bucket.applyRemovalPolicy(cdk.RemovalPolicy.DESTROY);
+    //   // (level1S3Bucket as any).autoDeleteObjects = true; // Note: autoDeleteObjects is not a property of CfnBucketProps, but can be set like this if needed for experimentation
+    //   //
+    //   // // level2 bucket (the sweet spot) where everything necessary is auto.
+    //   // const level2S3Bucket = new Bucket(this, "MyFirstLevel2ConstructBucket", {
+    //   //   bucketName: "myfirstlevel2bucketirl",
+    //   //   versioned: true,
+    //   //   removalPolicy: cdk.RemovalPolicy.DESTROY, // to delete all inside the bucket after cdk destroy
+    //   //   autoDeleteObjects: true, // Good practice for experiment data
+    //   // });
+    //   //
+    //   // // Once the s3 object is created, add the event notification to queue
+    //   // level2S3Bucket.addEventNotification(EventType.OBJECT_CREATED,new SqsDestination(myQueue));
+    //   // // Creating a sqsQueue
+    //   // const myQueue = new Queue(this, "MyQueue", {
+    //   //   queueName: "MyQueue",
+    //   //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the queue when the stack is destroyed
+    //   // });
+    // }
 
     const bucket = new Bucket(this, "ReportBucket", {
       bucketName: "report-bucket-for-real",
@@ -73,24 +74,24 @@ export class ECvProjectStack extends cdk.Stack {
       // Good practice for experiment data
     });
 
-    // old way to create SNS topic
-    {
-      // // i7: Create SNS topic for error alerts
-      // const errorAlertTopic = new sns.Topic(this, "ErrorAlertTopic", {
-      //   topicName: "ErrorAlertTopic",
-      //   displayName: "Pipeline Error Alerts",
-      // });
-      // // i7: Subscribe an email address to the SNS topic
-      // const errorAlertSub = errorAlertTopic.addSubscription(
-      //   new subs.EmailSubscription("nayzinminlwin22@gmail.com")
-      // );
-      // // Retain the subscription when the stack is deleted
-      // errorAlertSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
-      // // Remove the topic when the stack is destroyed
-      // (errorAlertTopic.node.defaultChild as sns.CfnTopic).applyRemovalPolicy(
-      //   cdk.RemovalPolicy.RETAIN
-      // );
-    }
+    // // old way to create SNS topic
+    // {
+    //   // // i7: Create SNS topic for error alerts
+    //   // const errorAlertTopic = new sns.Topic(this, "ErrorAlertTopic", {
+    //   //   topicName: "ErrorAlertTopic",
+    //   //   displayName: "Pipeline Error Alerts",
+    //   // });
+    //   // // i7: Subscribe an email address to the SNS topic
+    //   // const errorAlertSub = errorAlertTopic.addSubscription(
+    //   //   new subs.EmailSubscription("nayzinminlwin22@gmail.com")
+    //   // );
+    //   // // Retain the subscription when the stack is deleted
+    //   // errorAlertSub.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
+    //   // // Remove the topic when the stack is destroyed
+    //   // (errorAlertTopic.node.defaultChild as sns.CfnTopic).applyRemovalPolicy(
+    //   //   cdk.RemovalPolicy.RETAIN
+    //   // );
+    // }
 
     // Edit: Flexible SNS topic removal and recreation
     const eAlertTopic = "Error-Alert-Topic";
@@ -177,14 +178,6 @@ export class ECvProjectStack extends cdk.Stack {
     // i8.1: S3 bucket for static website hosting
     const siteBucket = new Bucket(this, "SiteBucket", {
       bucketName: "nzml-my-static-website-bucket",
-      // websiteIndexDocument: "index.html", // Not needed for CloudFront
-      // blockPublicAccess: new BlockPublicAccess({
-      //   blockPublicAcls: false,
-      //   ignorePublicAcls: false,
-      //   blockPublicPolicy: false,
-      //   restrictPublicBuckets: false,
-      // }), // Allow public access
-      // publicReadAccess: true, // Allow public read access for static website
 
       // i14 : Migrating S3 static site to CloudFront
       publicReadAccess: false, // block public access, and OAI will used for CloudFront
@@ -194,23 +187,23 @@ export class ECvProjectStack extends cdk.Stack {
       autoDeleteObjects: true,
     });
 
-    // old way to create DynamoDB table
-    {
-      // // i8.2: Define DynamoDB table for User Alert Configs
-      // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
-      //   tableName: "UserAlertConfigs", // Optional: specify a table name
-      //   partitionKey: {
-      //     name: "userID",
-      //     type: dynamoDB.AttributeType.STRING,
-      //   },
-      //   sortKey: {
-      //     name: "alertID",
-      //     type: dynamoDB.AttributeType.STRING,
-      //   },
-      //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
-      //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
-      // });
-    }
+    // // old way to create DynamoDB table
+    // {
+    //   // // i8.2: Define DynamoDB table for User Alert Configs
+    //   // const alertConfigsTable = new dynamoDB.Table(this, "AlertConfigs", {
+    //   //   tableName: "UserAlertConfigs", // Optional: specify a table name
+    //   //   partitionKey: {
+    //   //     name: "userID",
+    //   //     type: dynamoDB.AttributeType.STRING,
+    //   //   },
+    //   //   sortKey: {
+    //   //     name: "alertID",
+    //   //     type: dynamoDB.AttributeType.STRING,
+    //   //   },
+    //   //   billingMode: dynamoDB.BillingMode.PAY_PER_REQUEST, // Use on-demand billing mode
+    //   //   removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the table when the stack is destroyed
+    //   // });
+    // }
 
     // new way to create DynamoDB with aws custom resource
     const dynamoDBTable_name = "UserAlertConfigs";
@@ -346,20 +339,20 @@ export class ECvProjectStack extends cdk.Stack {
 
     // // i8.3 : Save Alert API and Lambda Function
 
-    // old way to create Lambda function for saving alerts
-    {
-      // // new Lambda funtion to handle POST /alerts
-      // const saveAlertFn0 = new lambda.Function(this, "SaveAlertFunction", {
-      //   runtime: lambda.Runtime.NODEJS_18_X,
-      //   handler: "saveAlert.handler", // point to export.handler in saveAlert.js
-      //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
-      //   environment: {
-      //     TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
-      //     BUCKET_NAME: bucket.bucketName, // pass the bucket name into the function as an environment variable
-      //   },
-      //   timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
-      // });
-    }
+    // // old way to create Lambda function for saving alerts
+    // {
+    //   // // new Lambda funtion to handle POST /alerts
+    //   // const saveAlertFn0 = new lambda.Function(this, "SaveAlertFunction", {
+    //   //   runtime: lambda.Runtime.NODEJS_18_X,
+    //   //   handler: "saveAlert.handler", // point to export.handler in saveAlert.js
+    //   //   code: lambda.Code.fromAsset("lambda"), // package up everything in ./lambda/
+    //   //   environment: {
+    //   //     TABLE_NAME: alertConfigsTable.tableName, // pass the table name into the function as an environment variable
+    //   //     BUCKET_NAME: bucket.bucketName, // pass the bucket name into the function as an environment variable
+    //   //   },
+    //   //   timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
+    //   // });
+    // }
 
     // New way to create Lambda function using NodejsFunction
     const saveAlertFn = new NodejsFunction(this, "SaveAlertFunction", {
@@ -429,6 +422,9 @@ export class ECvProjectStack extends cdk.Stack {
       timeout: cdk.Duration.seconds(10), // set timeout to 10 seconds
     });
 
+    // set environment variable for deleteAlertFn
+    deleteAlertFn.addEnvironment("AWS_ACCOUNT_ID", Stack.of(this).account);
+
     // Grant the Lambda function permissions to delete from the DynamoDB table
     alertConfigsTable.grantWriteData(deleteAlertFn); // grant write permissions to the lambda function
     alertConfigsTable.grantReadData(deleteAlertFn); // grant read permissions to the lambda function
@@ -467,77 +463,57 @@ export class ECvProjectStack extends cdk.Stack {
     const table: dynamoDB.ITable = alertConfigsTable;
     table.grantReadData(fetcherFn); // grant read permissions to the lambda function
 
-    // // i8.5: SNS publish permissions to the lambda function
-    // const userAlertTopic = new sns.Topic(this, "UserAlertTopic", {
-    //   topicName: "UserAlertTopic",
-    //   displayName: "User Alert Notifications",
-    // });
+    fetcherFn.addEnvironment("AWS_ACCOUNT_ID", Stack.of(this).account);
 
-    // i8.7: new way to create SNS topic
-    const userAlertTopic_name = "User-Alert-Topic";
-
-    // Ensure the SNS topic exists, creating it if it doesn't
-    const ensureUserAlertTopic = new AwsCustomResource(
-      this,
-      "EnsureUserAlertTopic",
-      {
-        onCreate: {
-          service: "SNS",
-          action: "createTopic",
-          parameters: {
-            Name: userAlertTopic_name,
-            displayName: "User Alert Notifications",
-          },
-          // SNS topic ARN will be used as the physical resource ID
-          physicalResourceId: PhysicalResourceId.fromResponse("TopicArn"),
-        },
-        policy: AwsCustomResourcePolicy.fromSdkCalls({
-          resources: AwsCustomResourcePolicy.ANY_RESOURCE,
-        }),
-      }
+    // grant fetcher function to list all the sns topics in the whole stack
+    fetcherFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTopics",
+          "sns:Publish",
+        ],
+        effect: iam.Effect.ALLOW,
+        // allow listing for all sns topics
+        resources: ["*"], // Allow listing all SNS topics
+      })
     );
-
-    // Get the topic ARN from the custom resource
-    const userAlertTopicArn = ensureUserAlertTopic.getResponseField("TopicArn");
-    const userAlertTopic = sns.Topic.fromTopicArn(
-      this,
-      "UserAlertTopic",
-      userAlertTopicArn
-    );
-
-    // pass the SNS topic ARN into the function as an environment variable
-    fetcherFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn);
-    saveAlertFn.addEnvironment("USER_ALERT_TOPIC_ARN", userAlertTopic.topicArn);
-
-    // grant publish permissions to the lambda function
-    userAlertTopic.grantPublish(fetcherFn);
-
-    // retain SNS mail subscriptions after stack deletion
-    // userAlertTopic.applyRemovalPolicy(cdk.RemovalPolicy.RETAIN);
 
     // i8.6: Pass the table name into the function as an environment variable
     // pass the table name into the function as an environment variable
     fetcherFn.addEnvironment("TABLE_NAME", alertConfigsTable.tableName);
 
-    // i8.7: User Alerts SNS topic subscription
-    userAlertTopic.grantSubscribe(saveAlertFn);
+    // set environment variable for saveAlertFn
+    saveAlertFn.addEnvironment("AWS_ACCOUNT_ID", Stack.of(this).account);
 
     saveAlertFn.addToRolePolicy(
       new iam.PolicyStatement({
-        actions: ["sns:ListSubscriptionsByTopic"],
-        resources: [userAlertTopic.topicArn],
+        actions: [
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTopics",
+          "sns:Subscribe",
+          "sns:CreateTopic",
+        ],
+        effect: iam.Effect.ALLOW,
+        // allow listing for all sns topics
+        resources: ["*"], // Allow listing all SNS topics
       })
     );
 
-    // moved to cloudfront already
-    // // sitebucket url output
-    // new cdk.CfnOutput(this, "SiteBucket_URL", {
-    //   description: "The URL of the static website bucket",
-    //   value: siteBucket.bucketWebsiteUrl,
-    //   // call distribution domain name for static website
-    //   // value: distribution.distributionDomainName,
-    //   exportName: "SiteBucketURL", // Optional: export the URL for use in other stacks
-    // });
+    //grant list subscriptions permissions to the lambda function
+    deleteAlertFn.addToRolePolicy(
+      new iam.PolicyStatement({
+        actions: [
+          "sns:ListSubscriptionsByTopic",
+          "sns:ListTopics",
+          "sns:Publish",
+          "sns:Unsubscribe",
+          "sns:DeleteTopic",
+        ],
+        effect: iam.Effect.ALLOW,
+        resources: ["*"],
+      })
+    );
 
     // i14 : Migrate Static site to CloudFront
     // Create Origin Access Identity (OAI) for CloudFront
@@ -557,8 +533,6 @@ export class ECvProjectStack extends cdk.Stack {
         ],
       })
     );
-
-    // siteBucket.grantRead(oai); // Grant read permissions to the OAI
 
     // Define Cloudfront distribution
     const distribution = new cloudfront.Distribution(this, "SiteDistribution", {

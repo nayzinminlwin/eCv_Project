@@ -76,8 +76,15 @@ exports.handler = async (event) => {
 
     // Comparison for each alert configuration
     for (const alerts of alertConfigs) {
-      const { alertID, symbol, condition, price, upperBound, lowerBound } =
-        alerts || {};
+      const {
+        alertID,
+        email,
+        symbol,
+        condition,
+        price,
+        upperBound,
+        lowerBound,
+      } = alerts || {};
 
       // i8.7: Evaluating the condition
       const trigger = conditionProcessing(
@@ -92,13 +99,18 @@ exports.handler = async (event) => {
         assetsData[symbol]?.price_change_24h
       );
 
+      const emailUsername = email.split("@")[0];
+
       // i7.3 : Publish to SNS if condition is met
       if (trigger) {
         const msg = `Alert for ${alertID} (${symbol}): ${trigger}\n`;
         console.log("\n📢 Triggered condition: ", msg);
 
+        // get userAlertTopicArn from emailUserName
+        const userAlertTopicArn = `arn:aws:sns:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:user-alerts-${emailUsername}`;
+
         const params = {
-          TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+          TopicArn: userAlertTopicArn, // ✅ Topic ARN
           Subject: `Crypto Alert for ${assetsData[symbol]?.id}/${symbol}`,
           Message: msg,
         };

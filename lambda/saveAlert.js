@@ -67,38 +67,62 @@ exports.handler = async (event) => {
       })
       .promise();
 
-    // SNS mail subscription
-    const subs = await sns
-      .listSubscriptionsByTopic({
-        TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
-      })
-      .promise();
+    const emailUserName = email.split("@")[0]; // Extract username from email
 
-    let rtnMsg = "";
-    // Check if email is already subscribed
-    const emailExists = subs.Subscriptions.find(
-      (sub) => sub.Endpoint === email && sub.Protocol === "email"
+    // check if usermail already got a sns topic
+    const existingTopics = await sns.listTopics().promise();
+    const userTopicExists = existingTopics.Topics.some((topic) =>
+      topic.TopicArn.includes(`user-alerts-${emailUserName}`)
     );
 
-    // If not subscribed, add the email to the SNS topic
-    if (!emailExists) {
+    let rtnMsg = "";
+
+    if (!userTopicExists) {
+      // Create a new SNS topic for the user if it doesn't exist
+      const userAlertTopicArn = `arn:aws:sns:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:user-alerts-${emailUserName}`;
+      await sns.createTopic({ Name: `user-alerts-${emailUserName}` }).promise();
+
+      // Subscribe the user's email to the topic
       await sns
         .subscribe({
-          TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+          TopicArn: userAlertTopicArn,
           Protocol: "email",
-          Endpoint: email, // user's email
+          Endpoint: email,
         })
         .promise();
+
       rtnMsg = `\nPlease confirm via your email inbox.`;
-      console.log(
-        `✅ Subscribed ${email} to alerts topic. Confirm via mail inbox.`
-      );
+
+      console.log(`✅ New Topic saved for userID: ${userID}!`);
     }
 
-    // // i8.7 : Prepare the most recent data and upload to S3
-    // // Make the initial fetch and save it to compare in the next fetch
-    // // Fetch and write data to S3
-    // await fetch_and_write_to_s3(symbol);
+    // // SNS mail subscription
+    // {
+    //   // const subs = await sns
+    //   //   .listSubscriptionsByTopic({
+    //   //     TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+    //   //   })
+    //   //   .promise();
+    //   // let rtnMsg = "";
+    //   // // Check if email is already subscribed
+    //   // const emailExists = subs.Subscriptions.find(
+    //   //   (sub) => sub.Endpoint === email && sub.Protocol === "email"
+    //   // );
+    //   // // If not subscribed, add the email to the SNS topic
+    //   // if (!emailExists) {
+    //   //   await sns
+    //   //     .subscribe({
+    //   //       TopicArn: process.env.USER_ALERT_TOPIC_ARN, // injected by CDK
+    //   //       Protocol: "email",
+    //   //       Endpoint: email, // user's email
+    //   //     })
+    //   //     .promise();
+    //   //   rtnMsg = `\nPlease confirm via your email inbox.`;
+    //   //   console.log(
+    //   //     `✅ Subscribed ${email} to alerts topic. Confirm via mail inbox.`
+    //   //   );
+    //   // }
+    // }
 
     // s3 fetch and write architecture changed to i12 Dynamo fetch and write
 
@@ -106,7 +130,7 @@ exports.handler = async (event) => {
     // Collect unique symbols to fetch data in burst
     const symbols = new Set([symbol]); // Collect unique symbols
     const assetsData = await fetch_AssetsData(symbols); // Fetch assets data
-    await writePrice_to_DynamoDB(assetsData); // Write fetched data to DynamoDB
+    writePrice_to_DynamoDB(assetsData); // Write fetched data to DynamoDB
 
     // 4. Return success response
     return {

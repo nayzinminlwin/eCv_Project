@@ -2,6 +2,7 @@
 
 const AWS = require("aws-sdk");
 const db = new AWS.DynamoDB.DocumentClient();
+const sns = new AWS.SNS();
 
 exports.handler = async (event) => {
   try {
@@ -44,6 +45,9 @@ exports.handler = async (event) => {
       })
       .promise();
 
+    // Log the alert existence check
+    console.log("🤔 Alert existence check result:", alertExists);
+
     // return 404 if alert does not exist
     if (!alertExists.Item) {
       return {
@@ -66,7 +70,30 @@ exports.handler = async (event) => {
       })
       .promise();
 
-    // 3. Return success response
+    const emailUsername = alertExists.Item.email.split("@")[0];
+    const userTopicArn = `arn:aws:sns:${process.env.AWS_REGION}:${process.env.AWS_ACCOUNT_ID}:user-alerts-${emailUsername}`;
+
+    // 3. Push sns notification to mail subscriber for deletion
+    const message = `Alert with ID: ${alertID} for ${alertExists.Item.symbol} by userID: ${userID} has been deleted.\n
+    Symbol: ${alertExists.Item.symbol}\n
+    Conditions: ${alertExists.Item.condition} at price: ${alertExists.Item.price}\n
+    Upper Bound: ${alertExists.Item.upperBound}, Lower Bound: ${alertExists.Item.lowerBound}\n`;
+
+    const params = {
+      TopicArn: userTopicArn,
+      Subject: `Alert Deletion Notification for ${userID}`,
+      Message: message,
+    };
+
+    await sns.publish(params).promise();
+    console.log("📬 SNS Notification sent for alert deletion:", message);
+
+    // Log the successful deletion
+    console.log(
+      `✅ Alert with ID: ${alertID} for userID: ${userID} deleted successfully.`
+    );
+
+    // 4. Return success response
     return {
       statusCode: 200,
       body: JSON.stringify({ message: "Alert deleted successfully." }),
