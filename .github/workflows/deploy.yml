@@ -38,76 +38,29 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Configure AWS CLI (fallback)
+      - name: Create AWS profile for CDK
         run: |
-          # Create AWS credentials directory
           mkdir -p ~/.aws
-
-          # Create credentials file
           cat > ~/.aws/credentials << EOF
-          [default]
-          aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
           [cdk]
           aws_access_key_id = ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws_secret_access_key = ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           EOF
 
-          # Create config file
           cat > ~/.aws/config << EOF
-          [default]
-          region = ${{ secrets.AWS_REGION }}
-          output = json
-
           [profile cdk]
           region = ${{ secrets.AWS_REGION }}
           output = json
           EOF
 
-          # Set proper permissions
-          chmod 600 ~/.aws/credentials
-          chmod 600 ~/.aws/config
-
-          # Also use aws configure as backup
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set default.region ${{ secrets.AWS_REGION }}
-          aws configure set default.output json
-
-          # Also create a named profile for CDK
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }} --profile cdk
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }} --profile cdk
-          aws configure set region ${{ secrets.AWS_REGION }} --profile cdk
-
-      - name: Verify AWS credentials
-        run: |
-          echo "Testing AWS CLI access..."
-          aws sts get-caller-identity
-          echo "AWS Region: $AWS_REGION"
-          echo "AWS Account: $AWS_ACCOUNT_ID"
-          echo "Environment variables:"
-          echo "AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}***"
-          echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:0:10}***"
-          echo "AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION"
+          chmod 600 ~/.aws/credentials ~/.aws/config
 
       - name: Deploy CDK stack
-        id: cdk_deploy
         run: |
-          echo "Deploying CDK stack..."
-          echo "Testing CDK with credentials..."
-          npx cdk list --profile cdk
-          echo "Deploying with profile..."
           npx cdk deploy ECvProjectStack \
             --outputs-file cdk-outputs.json \
             --require-approval never \
             --profile cdk
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
-          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Extract CloudFront URL
         id: extract
@@ -115,14 +68,8 @@ jobs:
           CF_URL=$(jq -r '.ECvProjectStack.CloudFrontURL' < cdk-outputs.json)
           echo "CLOUDFRONT_URL=$CF_URL" >> $GITHUB_OUTPUT
 
-      - name: Update Live URL file
+      - name: Create GitHub Pages content
         run: |
-          echo "CloudFront URL: ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
-          echo "[Live Demo](${{ steps.extract.outputs.CLOUDFRONT_URL }})" > LIVE_URL.md
-          echo "Created LIVE_URL.md with content:"
-          cat LIVE_URL.md
-
-          # Create a simple HTML redirect page for GitHub Pages
           mkdir -p gh-pages
           cat > gh-pages/index.html << EOF
           <!DOCTYPE html>
@@ -131,18 +78,12 @@ jobs:
               <title>eCv Project - Live Demo</title>
               <meta http-equiv="refresh" content="3; url=${{ steps.extract.outputs.CLOUDFRONT_URL }}">
               <meta name="description" content="eCv Project - Cryptocurrency Alert System">
-              <script>
-                  setTimeout(function() {
-                      window.location.href = "${{ steps.extract.outputs.CLOUDFRONT_URL }}";
-                  }, 3000);
-              </script>
               <style>
                   body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
                   .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
                   .logo { font-size: 2em; color: #333; margin-bottom: 20px; }
                   .url { background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 20px 0; word-break: break-all; }
                   .btn { display: inline-block; background: #007cba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px; }
-                  .countdown { font-size: 1.2em; color: #666; }
               </style>
           </head>
           <body>
@@ -176,26 +117,6 @@ jobs:
           </html>
           EOF
 
-          # Create a README for the GitHub Pages deployment
-          cat > gh-pages/README.md << EOF
-          # eCv Project - Live Demo
-
-          This page automatically redirects to the live CloudFront deployment:
-
-          **🚀 Live Application:** [${{ steps.extract.outputs.CLOUDFRONT_URL }}](${{ steps.extract.outputs.CLOUDFRONT_URL }})
-
-          ## About
-          Cryptocurrency Alert System built with:
-          - AWS CDK (Infrastructure as Code)
-          - AWS Lambda (Serverless Functions)  
-          - AWS CloudFront (Global CDN)
-          - AWS DynamoDB (Database)
-          - AWS SNS (Notifications)
-
-          **📖 Source Code:** [GitHub Repository](https://github.com/nayzinminlwin/eCv_Project)
-          EOF
-        # (Optionally) commit it back so your README can `include` or link it
-
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
@@ -203,9 +124,6 @@ jobs:
           publish_dir: ./gh-pages
           publish_branch: gh-pages
           enable_jekyll: false
-          allow_empty_commit: false
-        env:
-          CLOUDFRONT_URL: ${{ steps.extract.outputs.CLOUDFRONT_URL }}
 
       - name: Create deployment status
         uses: chrnorm/deployment-action@v2
@@ -216,7 +134,6 @@ jobs:
           description: "Live demo deployed to CloudFront"
 
       - name: Update deployment status
-        if: success()
         uses: chrnorm/deployment-status@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
@@ -225,18 +142,10 @@ jobs:
           environment-url: ${{ steps.extract.outputs.CLOUDFRONT_URL }}
           description: "Successfully deployed to CloudFront"
 
-      - name: Commit and push LIVE_URL.md
+      - name: Update LIVE_URL.md
         run: |
+          echo "[Live Demo](${{ steps.extract.outputs.CLOUDFRONT_URL }})" > LIVE_URL.md
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add LIVE_URL.md
-
-          # Check if there are changes to commit
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-          else
-            git commit -m "update live URL to ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
-            git push
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git diff --staged --quiet || git commit -m "update live URL to ${{ steps.extract.outputs.CLOUDFRONT_URL }}" && git push
