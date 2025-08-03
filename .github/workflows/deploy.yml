@@ -7,6 +7,8 @@ on:
 permissions:
   contents: write # Required for pushing back to repository
   actions: read # Required for GitHub Actions
+  deployments: write # Required for deployment status
+  pages: write # Required for GitHub Pages
 
 jobs:
   deploy:
@@ -126,18 +128,71 @@ jobs:
           <!DOCTYPE html>
           <html>
           <head>
-              <title>Redirecting to Live Demo</title>
-              <meta http-equiv="refresh" content="0; url=${{ steps.extract.outputs.CLOUDFRONT_URL }}">
+              <title>eCv Project - Live Demo</title>
+              <meta http-equiv="refresh" content="3; url=${{ steps.extract.outputs.CLOUDFRONT_URL }}">
+              <meta name="description" content="eCv Project - Cryptocurrency Alert System">
               <script>
-                  window.location.href = "${{ steps.extract.outputs.CLOUDFRONT_URL }}";
+                  setTimeout(function() {
+                      window.location.href = "${{ steps.extract.outputs.CLOUDFRONT_URL }}";
+                  }, 3000);
               </script>
+              <style>
+                  body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #f5f5f5; }
+                  .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                  .logo { font-size: 2em; color: #333; margin-bottom: 20px; }
+                  .url { background: #f0f0f0; padding: 10px; border-radius: 5px; margin: 20px 0; word-break: break-all; }
+                  .btn { display: inline-block; background: #007cba; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px; }
+                  .countdown { font-size: 1.2em; color: #666; }
+              </style>
           </head>
           <body>
-              <h1>Redirecting to Live Demo...</h1>
-              <p>If you are not redirected automatically, <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}">click here</a>.</p>
-              <p><strong>Live URL:</strong> <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}">${{ steps.extract.outputs.CLOUDFRONT_URL }}</a></p>
+              <div class="container">
+                  <div class="logo">🚀 eCv Project</div>
+                  <h1>Cryptocurrency Alert System</h1>
+                  <p>Redirecting to live demo in <span id="countdown">3</span> seconds...</p>
+                  
+                  <div class="url">
+                      <strong>Live Application:</strong><br>
+                      <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}">${{ steps.extract.outputs.CLOUDFRONT_URL }}</a>
+                  </div>
+                  
+                  <a href="${{ steps.extract.outputs.CLOUDFRONT_URL }}" class="btn">🔗 Go to Live Demo</a>
+                  <a href="https://github.com/nayzinminlwin/eCv_Project" class="btn">📖 View Source Code</a>
+                  
+                  <script>
+                      let count = 3;
+                      const countdown = document.getElementById('countdown');
+                      const timer = setInterval(() => {
+                          count--;
+                          countdown.textContent = count;
+                          if (count <= 0) {
+                              clearInterval(timer);
+                              window.location.href = "${{ steps.extract.outputs.CLOUDFRONT_URL }}";
+                          }
+                      }, 1000);
+                  </script>
+              </div>
           </body>
           </html>
+          EOF
+
+          # Create a README for the GitHub Pages deployment
+          cat > gh-pages/README.md << EOF
+          # eCv Project - Live Demo
+
+          This page automatically redirects to the live CloudFront deployment:
+
+          **🚀 Live Application:** [${{ steps.extract.outputs.CLOUDFRONT_URL }}](${{ steps.extract.outputs.CLOUDFRONT_URL }})
+
+          ## About
+          Cryptocurrency Alert System built with:
+          - AWS CDK (Infrastructure as Code)
+          - AWS Lambda (Serverless Functions)  
+          - AWS CloudFront (Global CDN)
+          - AWS DynamoDB (Database)
+          - AWS SNS (Notifications)
+
+          **📖 Source Code:** [GitHub Repository](https://github.com/nayzinminlwin/eCv_Project)
           EOF
         # (Optionally) commit it back so your README can `include` or link it
 
@@ -149,6 +204,26 @@ jobs:
           publish_branch: gh-pages
           enable_jekyll: false
           allow_empty_commit: false
+        env:
+          CLOUDFRONT_URL: ${{ steps.extract.outputs.CLOUDFRONT_URL }}
+
+      - name: Create deployment status
+        uses: chrnorm/deployment-action@v2
+        id: deployment
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          environment: production
+          description: "Live demo deployed to CloudFront"
+
+      - name: Update deployment status
+        if: success()
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
+          state: success
+          environment-url: ${{ steps.extract.outputs.CLOUDFRONT_URL }}
+          description: "Successfully deployed to CloudFront"
 
       - name: Commit and push LIVE_URL.md
         run: |
@@ -160,7 +235,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            git commit -m "chore: update live URL to ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
+            git commit -m "update live URL to ${{ steps.extract.outputs.CLOUDFRONT_URL }}"
             git push
           fi
         env:
