@@ -9,43 +9,52 @@ jobs:
     runs-on: ubuntu-latest
     env:
       AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "20"
+          cache: "npm"
 
       - name: Install dependencies
         run: npm ci
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Verify AWS credentials
+        run: |
+          aws sts get-caller-identity
+          echo "AWS Region: $AWS_REGION"
+          echo "AWS Account: $AWS_ACCOUNT_ID"
+
       - name: Bootstrap CDK (if first deploy)
         run: |
-          npx cdk bootstrap aws://${AWS_ACCOUNT}/${AWS_REGION} \
-            --require-approval never
+          npx cdk bootstrap aws://${AWS_ACCOUNT_ID}/${AWS_REGION} \
+            --require-approval never \
+            --verbose
 
       - name: Deploy CDK stack
         id: cdk_deploy
         run: |
-          npx cdk deploy ECV_PROJECT \
+          npx cdk deploy ECvProjectStack \
             --outputs-file cdk-outputs.json \
             --require-approval never
 
       - name: Extract CloudFront URL
         id: extract
         run: |
-          CF_URL=$(jq -r '.ECV_PROJECT.CloudFrontURL' < cdk-outputs.json)
+          CF_URL=$(jq -r '.ECvProjectStack.CloudFrontURL' < cdk-outputs.json)
           echo "CLOUDFRONT_URL=$CF_URL" >> $GITHUB_OUTPUT
 
       - name: Update Live URL file
