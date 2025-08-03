@@ -19,6 +19,8 @@ import {
   AwsCustomResourcePolicy,
 } from "aws-cdk-lib/custom-resources"; // custom resource for flexible SNS topic removal and recreation
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as origins from "aws-cdk-lib/aws-cloudfront-origins";
+import * as cloudfront from "aws-cdk-lib/aws-cloudfront";
 
 export class ECvProjectStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
@@ -175,14 +177,19 @@ export class ECvProjectStack extends cdk.Stack {
     // i8.1: S3 bucket for static website hosting
     const siteBucket = new Bucket(this, "SiteBucket", {
       bucketName: "nzml-my-static-website-bucket",
-      websiteIndexDocument: "index.html",
-      blockPublicAccess: new BlockPublicAccess({
-        blockPublicAcls: false,
-        ignorePublicAcls: false,
-        blockPublicPolicy: false,
-        restrictPublicBuckets: false,
-      }), // Allow public access
-      publicReadAccess: true, // Allow public read access for static website
+      // websiteIndexDocument: "index.html", // Not needed for CloudFront
+      // blockPublicAccess: new BlockPublicAccess({
+      //   blockPublicAcls: false,
+      //   ignorePublicAcls: false,
+      //   blockPublicPolicy: false,
+      //   restrictPublicBuckets: false,
+      // }), // Allow public access
+      // publicReadAccess: true, // Allow public read access for static website
+
+      // i14 : Migrating S3 static site to CloudFront
+      publicReadAccess: false, // block public access, and OAI will used for CloudFront
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL, // Block all public access - REQUIRED FOR CLOUDFRONT
+
       removalPolicy: cdk.RemovalPolicy.DESTROY, // Remove the bucket when the stack is destroyed
       autoDeleteObjects: true,
     });
@@ -443,9 +450,9 @@ export class ECvProjectStack extends cdk.Stack {
     });
 
     // i8.1: Deploy static website files to the S3 bucket
-    new s3deploy.BucketDeployment(this, "DeploySite", {
+    const siteDeployment = new s3deploy.BucketDeployment(this, "DeploySite", {
       sources: [
-        s3deploy.Source.asset("../ECV_PROJECT/site"),
+        s3deploy.Source.asset("site"), // Fixed path - should be "site" not "../ECV_PROJECT/site"
         // i8.4 : Add a JSON file with the API URL
         s3deploy.Source.jsonData("config.json", {
           apiUrl: api.url! + "alerts", // Replace with your actual API URL
@@ -522,13 +529,55 @@ export class ECvProjectStack extends cdk.Stack {
       })
     );
 
-    // sitebucket url output
-    new cdk.CfnOutput(this, "SiteBucket_URL", {
-      description: "The URL of the static website bucket",
-      value: siteBucket.bucketWebsiteUrl,
-      // call distribution domain name for static website
-      // value: distribution.distributionDomainName,
-      exportName: "SiteBucketURL", // Optional: export the URL for use in other stacks
+    // moved to cloudfront already
+    // // sitebucket url output
+    // new cdk.CfnOutput(this, "SiteBucket_URL", {
+    //   description: "The URL of the static website bucket",
+    //   value: siteBucket.bucketWebsiteUrl,
+    //   // call distribution domain name for static website
+    //   // value: distribution.distributionDomainName,
+    //   exportName: "SiteBucketURL", // Optional: export the URL for use in other stacks
+    // });
+
+    // i14 : Migrate Static site to CloudFront
+    // Create Origin Access Identity (OAI) for CloudFront
+    const oai = new cloudfront.OriginAccessIdentity(this, "SiteOAI", {
+      comment: "OAI for static site Cloudfront",
+    });
+
+    // Grant read permissions on Bucket to the OAI
+    siteBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        actions: ["s3:GetObject"],
+        resources: [siteBucket.arnForObjects("*")],
+        principals: [
+          new iam.CanonicalUserPrincipal(
+            oai.cloudFrontOriginAccessIdentityS3CanonicalUserId
+          ),
+        ],
+      })
+    );
+
+    // siteBucket.grantRead(oai); // Grant read permissions to the OAI
+
+    // Define Cloudfront distribution
+    const distribution = new cloudfront.Distribution(this, "SiteDistribution", {
+      defaultBehavior: {
+        origin: new origins.S3Origin(siteBucket, { originAccessIdentity: oai }),
+        allowedMethods: cloudfront.AllowedMethods.ALLOW_ALL,
+        cachePolicy: cloudfront.CachePolicy.CACHING_OPTIMIZED,
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+      },
+      defaultRootObject: "index.html",
+    });
+
+    // Ensure deployment happens after distribution is created
+    siteDeployment.node.addDependency(distribution);
+
+    // Output the Cloudfront domain
+    new cdk.CfnOutput(this, "CloudFrontURL", {
+      description: "CloudFront distribution domain name",
+      value: "https://" + distribution.domainName,
     });
   }
 }

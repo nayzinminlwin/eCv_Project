@@ -218,17 +218,17 @@ function conditionProcessing(
       break;
 
     case "24_High":
-      if (defPrice < high24)
+      if (defPrice <= high24)
         return `24-hour high of ${high24}$ is exceeding the Defined price: ${defPrice}$.\n Current price: ${currentPrice}$.`;
       break;
 
     case "24_Low":
-      if (defPrice > low24)
+      if (defPrice >= low24)
         return `24-hour low of ${low24}$ is below the Defined price: ${defPrice}$.\n Current price: ${currentPrice}$.`;
       break;
 
     case "priceChange_24":
-      if (defPrice > change24)
+      if (defPrice >= change24)
         return `Defined price: ${defPrice}$ is above the 24-hour price change of ${change24}$.\n Current price: ${currentPrice}$.`;
       break;
 
