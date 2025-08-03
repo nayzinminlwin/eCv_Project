@@ -39,6 +39,11 @@ jobs:
           aws configure set default.region ${{ secrets.AWS_REGION }}
           aws configure set default.output json
 
+          # Also create a named profile for CDK
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }} --profile cdk
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }} --profile cdk
+          aws configure set region ${{ secrets.AWS_REGION }} --profile cdk
+
       - name: Verify AWS credentials
         run: |
           echo "Testing AWS CLI access..."
@@ -50,21 +55,12 @@ jobs:
           echo "AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:0:10}***"
           echo "AWS_DEFAULT_REGION: $AWS_DEFAULT_REGION"
 
-      - name: Bootstrap CDK (if first deploy)
-        run: |
-          echo "Starting CDK bootstrap for account: ${AWS_ACCOUNT_ID}, region: ${AWS_REGION}"
-          npx cdk bootstrap aws://${AWS_ACCOUNT_ID}/${AWS_REGION} \
-            --require-approval never \
-            --verbose
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
-
       - name: Deploy CDK stack
         id: cdk_deploy
         run: |
           echo "Deploying CDK stack..."
+          export CDK_DEFAULT_ACCOUNT=${AWS_ACCOUNT_ID}
+          export CDK_DEFAULT_REGION=${AWS_REGION}
           npx cdk deploy ECvProjectStack \
             --outputs-file cdk-outputs.json \
             --require-approval never
@@ -72,6 +68,8 @@ jobs:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
+          CDK_DEFAULT_ACCOUNT: ${{ secrets.AWS_ACCOUNT_ID }}
+          CDK_DEFAULT_REGION: ${{ secrets.AWS_REGION }}
 
       - name: Extract CloudFront URL
         id: extract
