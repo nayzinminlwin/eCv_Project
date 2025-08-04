@@ -5,6 +5,12 @@ Built with AWS CDK, Lambda, API Gateway, DynamoDB, EventBridge, SNS, and S3 stat
 
 ---
 
+# 🤖 Live Demo
+
+Check out the live demo of the application at [eCv Project Demo](https://github.com/nayzinminlwin/eCv_Project/blob/master/LIVE_URL.md).
+
+---
+
 ## 🚀 Quickstart
 
 1. **Clone the repo**
@@ -45,13 +51,16 @@ Built with AWS CDK, Lambda, API Gateway, DynamoDB, EventBridge, SNS, and S3 stat
 ## 📂 Project Structure
 
 ```
+├── .github/
+│   ├── workflows/          # GitHub Actions workflows
+│   │   └── deploy.yml      # CI/CD workflow for CD
 ├── bin/                     # CDK entrypoint
 ├── lib/                     # CDK stack definitions
 ├── lambda/
 │   ├── index.js             # scheduled fetcher + alert evaluator
 │   ├── saveAlert.js         # POST /alerts handler
 │   ├── deleteAlert.js       # DELETE /alerts/{alertId} handler
-│   └── fetch_n_write_s3.js  # fetches asset prices and writes to DynamoDB
+│   └── fetch_n_write.js     # fetches asset prices and writes to DynamoDB
 ├── site/                    # Static website assets (HTML + CSS + JS)
 │   ├── index.html           # index page with alert form
 │   ├── main.js              # js for design, form submission and API calls
@@ -79,8 +88,6 @@ Built with AWS CDK, Lambda, API Gateway, DynamoDB, EventBridge, SNS, and S3 stat
 
 ## 🛣️ Roadmap
 
-- Github Actions CI/CD
-- Github Deployments for static site
 - UI: List & delete alerts
 - Multi‑channel notifications (SMS, Slack)
 - Metrics dashboard (e.g. AWS QuickSight)
